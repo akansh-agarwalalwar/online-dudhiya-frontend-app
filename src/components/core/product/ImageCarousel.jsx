@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { View, Image, FlatList, Dimensions, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import COLORS from '../../../constants/Color';
+import { Heart } from 'lucide-react-native';
+import LikeButton from '../../common/LikeButton';
 
 const FallbackImage = ({ width, height, style }) => (
   <View style={[{
@@ -19,11 +21,15 @@ const FallbackImage = ({ width, height, style }) => (
 
 const { width } = Dimensions.get('window');
 
-const ImageCarousel = ({ images }) => {
+const ImageCarousel = ({ images, medicineId }) => {
   const [imageErrors, setImageErrors] = useState({});
   const [imageLoading, setImageLoading] = useState({});
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [liked, setLiked] = useState(false);
   const flatListRef = useRef(null);
+  const handleLikePress = () => {
+    setLiked(prev => !prev);
+  };
 
   const handleImageLoad = (index) => {
     console.log(`Image loaded successfully at index ${index}`);
@@ -56,9 +62,9 @@ const ImageCarousel = ({ images }) => {
   const renderThumbnail = ({ item, index }) => {
     const imageSource = item.source ? item.source : (item.uri ? { uri: item.uri } : null);
     const isSelected = index === currentIndex;
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={() => handleThumbnailPress(index)}
         style={{
           marginHorizontal: 4,
@@ -96,17 +102,20 @@ const ImageCarousel = ({ images }) => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
         renderItem={({ item, index }) => {
-          // Determine the image source - either local (require) or remote (uri)
           const imageSource = item.source ? item.source : (item.uri ? { uri: item.uri } : null);
-          
-          // Debug logging
-          console.log(`Rendering image ${index}:`, { item, imageSource });
-          
           return (
-            <View style={{ width: width, height: 260, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
+            <View style={{ width: width, height: 360, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
+              <View style={{ position: 'absolute', top: 24, right: 24, zIndex: 1 }}>
+                <LikeButton
+                  medicineId={medicineId}
+                  size={24}
+                  color="#E91E63"
+                  onToggle={(value) => console.log("Liked status:", value)}
+                />
+              </View>
               {imageErrors[index] || !imageSource ? (
-                <FallbackImage 
-                  width={width * 0.8} 
+                <FallbackImage
+                  width={width * 0.8}
                   height={200}
                   style={{ backgroundColor: '#e8e8e8' }}
                 />
@@ -114,15 +123,15 @@ const ImageCarousel = ({ images }) => {
                 <>
                   <Image
                     source={imageSource}
-                    style={{ width: width, height: 260, resizeMode: 'contain' }}
+                    style={{ width: width, height: 360, resizeMode: 'cover' }}
                     onLoad={() => handleImageLoad(index)}
                     onError={() => handleImageError(index)}
                     onLoadStart={() => handleImageLoadStart(index)}
                   />
                   {imageLoading[index] && (
-                    <View style={{ 
-                      position: 'absolute', 
-                      justifyContent: 'center', 
+                    <View style={{
+                      position: 'absolute',
+                      justifyContent: 'center',
                       alignItems: 'center',
                       backgroundColor: 'rgba(255,255,255,0.8)'
                     }}>
@@ -135,22 +144,6 @@ const ImageCarousel = ({ images }) => {
           );
         }}
       />
-      
-      {/* Thumbnail strip at the bottom */}
-      <View style={{ 
-        paddingVertical: 10, 
-        paddingHorizontal: 16,
-        backgroundColor: '#fff'
-      }}>
-        <FlatList
-          data={images}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item, index) => `thumb_${index}`}
-          renderItem={renderThumbnail}
-          contentContainerStyle={{ paddingHorizontal: 8 }}
-        />
-      </View>
     </View>
   );
 };

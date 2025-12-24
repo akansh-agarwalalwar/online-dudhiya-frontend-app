@@ -6,6 +6,7 @@ const initialState = {
   user: null,
   loading: false,
   error: null,
+  isGuest: false,
 };
 
 const authSlice = createSlice({
@@ -22,6 +23,7 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.user = action.payload.user;
       state.error = null;
+      state.isGuest = false;
     },
     loginFailure: (state, action) => {
       state.loading = false;
@@ -30,12 +32,18 @@ const authSlice = createSlice({
       state.user = null;
       state.error = action.payload;
     },
+    guestLogin: (state) => {
+      state.isGuest = true;
+      state.isAuthenticated = false; // Guest is not authenticated in the traditional sense
+      state.user = null;
+    },
     logout: (state) => {
       state.token = null;
       state.isAuthenticated = false;
       state.user = null;
       state.loading = false;
       state.error = null;
+      state.isGuest = false;
     },
     clearError: (state) => {
       state.error = null;
@@ -49,6 +57,7 @@ export const {
   loginFailure,
   logout,
   clearError,
+  guestLogin,
 } = authSlice.actions;
 
 export default authSlice.reducer;

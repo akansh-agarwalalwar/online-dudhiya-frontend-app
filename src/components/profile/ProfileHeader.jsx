@@ -13,16 +13,16 @@ import COLORS from '../../constants/Color';
 const { width } = Dimensions.get('window');
 
 const ProfileHeader = ({
-  userImage,
+  userImage = '',
   userName = 'John Doe',
-  userEmail = 'john.doe@example.com',
+  // userEmail = 'john.doe@example.com',
   userPhone = '+91 9876543210',
   onEditPress,
 }) => {
   return (
     <View style={styles.container}>
       <View style={styles.backgroundGradient} />
-      
+
       <View style={styles.contentContainer}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatarWrapper}>
@@ -30,14 +30,15 @@ const ProfileHeader = ({
               <Image source={{ uri: userImage }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </Text>
+                <Image
+                  source={{ uri: 'https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png' }}
+                  style={styles.avatar}
+                />
               </View>
             )}
           </View>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.editButton}
             onPress={onEditPress}
             activeOpacity={0.7}
@@ -48,8 +49,8 @@ const ProfileHeader = ({
 
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.userEmail}>{userEmail}</Text>
-          <Text style={styles.userPhone}>{userPhone}</Text>
+          {/* <Text style={styles.userEmail}>{userEmail}</Text> */}
+          <Text style={styles.userPhone}>+91 {userPhone}</Text>
         </View>
       </View>
     </View>

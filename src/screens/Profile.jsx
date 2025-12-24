@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import { useDispatch } from 'react-redux';
 import {
   View,
   ScrollView,
@@ -6,6 +7,7 @@ import {
   Alert,
   StatusBar,
   SafeAreaView,
+  RefreshControl,
 } from 'react-native';
 import {
   Package,
@@ -26,9 +28,23 @@ import ProfileMenuItem from '../components/profile/ProfileMenuItem';
 import ProfileStats from '../components/profile/ProfileStats';
 import LoadingScreen from '../components/common/LoadingScreen';
 import useProfile from '../hooks/useProfile';
+import ScreenWrapper from '../components/common/ScreenWrapper';
+
+import { logout } from '../redux/slices/authSlice';
+import authService from '../services/authService';
 
 const Profile = ({ navigation }) => {
+  const dispatch = useDispatch();
   const { profile, loading, updating, refreshProfile } = useProfile();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshProfile();
+    setRefreshing(false);
+  }, [refreshProfile]);
+
+  console.log(profile);
 
   // Navigation handlers
   const handleEditProfile = () => {
@@ -56,15 +72,15 @@ const Profile = ({ navigation }) => {
   };
 
   const handleSupport = () => {
-    Alert.alert('Support', 'Support screen will be implemented here.');
+    navigation.navigate('HelpAndSupport');
   };
 
   const handleAbout = () => {
-    Alert.alert('About', 'About screen will be implemented here.');
+    navigation.navigate('About');
   };
 
   const handlePrivacyPolicy = () => {
-    Alert.alert('Privacy Policy', 'Privacy policy will be shown here.');
+    navigation.navigate('PrivacyPolicy');
   };
 
   const handleLogout = () => {
@@ -73,10 +89,21 @@ const Profile = ({ navigation }) => {
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => {
-          // Implement logout logic here
-          console.log('User logged out');
-        }},
+        {
+          text: 'Logout', style: 'destructive', onPress: async () => {
+            try {
+              // 1. Clear local storage & API logout
+              await authService.logout();
+
+              // 2. Clear Redux state (this will trigger navigation switch in AppNavigator)
+              dispatch(logout());
+            } catch (error) {
+              console.error('Logout error:', error);
+              // Force logout in Redux even if API fails
+              dispatch(logout());
+            }
+          }
+        },
       ]
     );
   };
@@ -92,29 +119,38 @@ const Profile = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper topSafeArea={false} bottomSafeArea={true} style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.PRIMARY} />
-      
-      <ScrollView 
-        style={styles.scrollView} 
+
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.PRIMARY]}
+            tintColor={COLORS.PRIMARY}
+          />
+        }
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        bounces={false}
+        bounces={true}
       >
         {/* Profile Header */}
         <ProfileHeader
-          userImage={profile.image}
+          userImage={profile.profile_picture}
           userName={profile.name}
           userEmail={profile.email}
-          userPhone={profile.phone}
+          userPhone={profile.phone_number
+          }
           onEditPress={handleEditProfile}
         />
 
         {/* Profile Stats */}
-        <ProfileStats 
+        <ProfileStats
           stats={[
-            { label: 'Orders', value: profile.stats?.orders?.toString() || '0', icon: Package },
-            { label: 'Wishlist', value: profile.stats?.wishlist?.toString() || '0', icon: Heart },
-            { label: 'Reviews', value: profile.stats?.reviews?.toString() || '0', icon: Star },
+            { label: 'Orders', value: profile?.activeOrdersCount, icon: Package },
+            { label: 'Wishlist', value: profile?.wishlistCount, icon: Heart },
+            { label: 'Reviews', value: profile?.reviews?.toString() || '0', icon: Star },
           ]}
         />
 
@@ -126,7 +162,7 @@ const Profile = ({ navigation }) => {
             subtitle="Check your order status"
             onPress={handleMyOrders}
             showBadge={true}
-            badgeText="3"
+            badgeText={profile?.activeOrdersCount}
           />
           <ProfileMenuItem
             IconComponent={MapPin}
@@ -168,6 +204,18 @@ const Profile = ({ navigation }) => {
             title="Privacy Policy"
             subtitle="Read our privacy policy"
             onPress={handlePrivacyPolicy}
+          />
+          <ProfileMenuItem
+            IconComponent={Shield}
+            title="Terms & Conditions"
+            subtitle="Read our terms of service"
+            onPress={() => navigation.navigate('TermsAndConditions')}
+          />
+          <ProfileMenuItem
+            IconComponent={Shield}
+            title="Return Policy"
+            subtitle="Read our return policy"
+            onPress={() => navigation.navigate('ReturnPolicy')}
             isLast={true}
           />
         </ProfileSection>
@@ -206,7 +254,7 @@ const Profile = ({ navigation }) => {
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

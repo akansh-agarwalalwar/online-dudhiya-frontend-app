@@ -91,7 +91,6 @@ const ImageCarousel = ({
           const index = Math.round(
             e.nativeEvent.contentOffset.x / width
           );
-          console.log('Scroll ended - Index:', index, 'Offset:', e.nativeEvent.contentOffset.x);
           setCurrentIndex(index);
         }}
         onScrollEndDrag={(e) => {

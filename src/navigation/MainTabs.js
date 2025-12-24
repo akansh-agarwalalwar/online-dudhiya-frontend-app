@@ -14,6 +14,12 @@ import ManageAddressScreen from "../screens/Address/ManageAddress";
 import AddAddressScreen from "../screens/Address/AddAddress";
 import WishlistScreen from "../screens/WishlistScreen";
 import EditProfileScreen from "../screens/EditProfile";
+import OrderConfirmationScreen from "../screens/OrderConfirmation";
+import About from "../screens/About";
+import HelpAndSupport from "../screens/HelpAndSupport";
+import PrivacyPolicy from "../screens/PrivacyPolicy";
+import TermsAndConditions from "../screens/TermsAndConditions";
+import ReturnPolicy from "../screens/ReturnPolicy";
 // Import specific icons
 import { Home as HomeIcon, ShoppingBag, ShoppingCart, User } from "lucide-react-native";
 
@@ -31,9 +37,9 @@ function TabNavigator() {
         tabBarInactiveTintColor: "#8e8e93",
       }}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={Home} 
+      <Tab.Screen
+        name="Home"
+        component={Home}
         options={{
           tabBarLabel: "Home",
           tabBarIcon: ({ color, size }) => (
@@ -41,9 +47,19 @@ function TabNavigator() {
           ),
         }}
       />
-      <Tab.Screen 
-        name="Products" 
+      <Tab.Screen
+        name="Products"
         component={Product}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate("Products", {
+              categoryId: null,
+              categorySlug: null,
+              categoryName: null,
+            });
+          },
+        })}
         options={{
           tabBarLabel: "Products",
           tabBarIcon: ({ color, size }) => (
@@ -51,8 +67,8 @@ function TabNavigator() {
           ),
         }}
       />
-      <Tab.Screen 
-        name="Cart" 
+      <Tab.Screen
+        name="Cart"
         // component={CartWithRedux}
         component={Cart}
         options={{
@@ -62,8 +78,8 @@ function TabNavigator() {
           ),
         }}
       />
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={Profile}
         options={{
           tabBarLabel: "Profile",
@@ -103,6 +119,12 @@ export default function MainTabs() {
       <Stack.Screen name="Cart" component={Cart} />
       <Stack.Screen name="Home" component={Home} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="TermsAndConditions" component={TermsAndConditions} />
+      <Stack.Screen name="ReturnPolicy" component={ReturnPolicy} />
+      <Stack.Screen name="About" component={About} />
+      <Stack.Screen name="HelpAndSupport" component={HelpAndSupport} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
+      <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
     </Stack.Navigator>
   );
 }

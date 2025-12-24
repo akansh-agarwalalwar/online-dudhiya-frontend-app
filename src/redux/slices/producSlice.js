@@ -5,7 +5,7 @@ const productsSlice = createSlice({
   name: "products",
   initialState: {
     loading: false,
-    sections: [],
+    products: [],
     error: null
   },
 
@@ -19,7 +19,7 @@ const productsSlice = createSlice({
 
       .addCase(fetchHomeSections.fulfilled, (state, action) => {
         state.loading = false;
-        state.sections = action.payload;
+        state.products = action.payload;
       })
 
       .addCase(fetchHomeSections.rejected, (state, action) => {

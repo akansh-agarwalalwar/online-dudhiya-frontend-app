@@ -1,37 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
-
-// Mock API service - replace with actual API calls
-const ProfileAPI = {
-  getUserProfile: async () => {
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: '1',
-          name: 'John Doe',
-          email: 'john.doe@example.com',
-          phone: '+91 9876543210',
-          image: null,
-          stats: {
-            orders: 12,
-            wishlist: 8,
-            reviews: 24,
-          },
-        });
-      }, 1000);
-    });
-  },
-  
-  updateUserProfile: async (profileData) => {
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, data: profileData });
-      }, 500);
-    });
-  },
-};
+import { useSelector } from 'react-redux';
+import userService from '../services/userService';
 
 export const useProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -39,18 +9,36 @@ export const useProfile = () => {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
 
+  const { isGuest } = useSelector((state) => state.auth);
+
   // Load user profile
-  const loadProfile = async () => {
+  const loadProfile = async (showLoading = true) => {
+    if (isGuest) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       setError(null);
-      const userData = await ProfileAPI.getUserProfile();
+      console.log('🔍 Fetching user profile...');
+      const response = await userService.getMe();
+      console.log('✅ Profile API response:', response);
+      // Backend returns: { data: { user: {...} } }
+      const userData = response.data?.user || response.data;
+      console.log('✅ Profile data extracted:', userData);
       setProfile(userData);
     } catch (err) {
-      setError(err.message || 'Failed to load profile');
-      Alert.alert('Error', 'Failed to load profile data');
+      console.error('❌ Failed to load profile:', err);
+      const errorMessage = err.message || 'Failed to load profile';
+      setError(errorMessage);
+
+      // Only show alert if it's not an authentication error
+      if (!err.message?.includes('401') && !err.message?.includes('unauthorized')) {
+        Alert.alert('Error', 'Failed to load profile data');
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -58,10 +46,12 @@ export const useProfile = () => {
   const updateProfile = async (newData) => {
     try {
       setUpdating(true);
-      const result = await ProfileAPI.updateUserProfile(newData);
-      
-      if (result.success) {
-        setProfile(result.data);
+      const response = await userService.updateMe(newData);
+
+      // Backend returns: { data: { user: {...} } }
+      const userData = response.data?.user || response.data;
+      if (userData) {
+        setProfile(userData);
         Alert.alert('Success', 'Profile updated successfully');
         return true;
       }
@@ -75,14 +65,18 @@ export const useProfile = () => {
   };
 
   // Refresh profile data
-  const refreshProfile = () => {
-    loadProfile();
+  const refreshProfile = async () => {
+    await loadProfile(false);
   };
 
   // Load profile on component mount
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (!isGuest) {
+      loadProfile();
+    } else {
+      setLoading(false);
+    }
+  }, [isGuest]);
 
   return {
     profile,

@@ -3,13 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import COLORS from "../../constants/Color";
 import { ArrowRight } from "lucide-react-native";
 
-const ProfileRow = ({ label, value, onPress }) => {
+const ProfileRow = ({ label, value, onPress, disabled = false }) => {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress}>
+    <TouchableOpacity
+      style={[styles.row, disabled && styles.disabledRow]}
+      onPress={onPress}
+      disabled={disabled}
+    >
       <Text style={styles.label}>{label}</Text>
       <View style={styles.rightSide}>
         <Text style={styles.value}>{value}</Text>
-        <ArrowRight size={20} color={COLORS.GRAY} />
+        {!disabled && <ArrowRight size={20} color={COLORS.GRAY} />}
       </View>
     </TouchableOpacity>
   );
@@ -29,6 +33,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.WHITE,
     borderRadius: 12,
     marginBottom: 8,
+  },
+  disabledRow: {
+    opacity: 0.6,
   },
   label: {
     fontSize: 15,

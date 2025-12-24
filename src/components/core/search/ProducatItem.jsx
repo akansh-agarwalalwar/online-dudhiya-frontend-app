@@ -4,8 +4,10 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 const ProductItem = ({ image, name, onPress }) => {
   return (
     <TouchableOpacity style={styles.item} onPress={onPress}>
-      <Image source={image} style={styles.image} resizeMode="contain" />
-      <Text style={styles.label}>{name}</Text>
+      <Image source={image} style={styles.image} resizeMode="cover" />
+      <Text style={styles.label}>
+        {name?.length > 10 ? `${name.slice(0, 10)}..` : name}
+      </Text>
     </TouchableOpacity>
   );
 };
@@ -20,6 +22,7 @@ const styles = StyleSheet.create({
   image: {
     width: 65,
     height: 65,
+    borderRadius: 12,
   },
   label: {
     marginTop: 6,

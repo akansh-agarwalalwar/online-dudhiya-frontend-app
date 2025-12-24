@@ -5,45 +5,150 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
 import { Plus, Minus, Icon } from 'lucide-react-native';
 import Sizebadge from '../product/Sizebadge';
+import { calculateDiscount, getBestDiscount, getPrimarySize, formatPrice } from '../../../utils/priceUtils';
+import { addToCart, updateCartItem, deleteCartItem } from '../../../redux/thunks/cartThunk';
+import { selectMedicineQuantityInCart } from '../../../redux/slices/cartSlice';
+
 const ProductCard = ({ product }) => {
-  const [count, setCount] = useState(0);
+  const navigation = useNavigation();
+  const dispatch = useDispatch();
 
   if (!product) {
     return null;
   }
 
+  console.log(product, 'at product card');
+
+  // Handle new data structure
   const {
-    productImage,
-    offerPrice,
-    actualPrice,
+    images = [],
     title,
-    isVeg,
-    sizes = []
+    isVeg = "Yes",
+    sizes = [],
+    has_sizes,
+    mrp: fallbackMrp,
+    sale_price: fallbackSalePrice,
+    packaging_size,
+    id
   } = product;
 
-  // Calculate discount percentage
-  const discountPercent = actualPrice && offerPrice 
-    ? Math.round(((actualPrice - offerPrice) / actualPrice) * 100)
-    : 0;
+  // Get primary image
+  const productImage = images && images.length > 0 ? images[0] : null;
+
+  // Determine pricing based on whether product has sizes
+  let displayPrice, displayMrp, discountPercent, primarySizeName, primarySize;
+
+  if (has_sizes && sizes.length > 0) {
+    // Product has sizes - use primary size pricing
+    primarySize = getPrimarySize(sizes);
+    displayPrice = primarySize?.salePrice;
+    displayMrp = primarySize?.mrp;
+    primarySizeName = primarySize?.sizeName;
+    discountPercent = calculateDiscount(displayMrp, displayPrice);
+  } else {
+    // Product doesn't have sizes - use fallback pricing
+    displayPrice = fallbackSalePrice;
+    displayMrp = fallbackMrp;
+    primarySizeName = packaging_size || "1 unit";
+    discountPercent = calculateDiscount(displayMrp, displayPrice);
+  }
 
   const discount = discountPercent > 0 ? `${discountPercent}% OFF` : null;
-  const defaultSize = sizes[0] || "1 unit";
 
-  // Handle add and remove functions
-  const handleAdd = () => {
-    setCount(prevCount => prevCount + 1);
+  // Get quantity from cart
+  const count = useSelector((state) =>
+    selectMedicineQuantityInCart(
+      state,
+      id,
+      primarySize?.id
+    )
+  );
+
+  // Get cart items to find the specific cart item
+  const cartItems = useSelector((state) => state.cart.items);
+  const cartItem = cartItems.find(item =>
+    item.medicine.id === id &&
+    (primarySize ? item.sizeId === primarySize.id : !item.sizeId)
+  );
+
+  // Handle add function
+  const handleAdd = async (e) => {
+    e?.stopPropagation();
+
+    try {
+      const payload = {
+        medicineId: id,
+        quantity: 1,
+      };
+
+      // Add sizeId if product has sizes
+      if (has_sizes && primarySize) {
+        payload.sizeId = primarySize.id;
+      }
+
+      await dispatch(addToCart(payload)).unwrap();
+    } catch (error) {
+      Alert.alert('Error', error || 'Failed to add item to cart');
+    }
   };
 
-  const handleRemove = () => {
-    setCount(prevCount => prevCount > 0 ? prevCount - 1 : 0);
+  // Handle increment
+  const handleIncrement = async (e) => {
+    e?.stopPropagation();
+
+    if (cartItem) {
+      try {
+        await dispatch(updateCartItem({
+          itemId: cartItem.id,
+          quantity: cartItem.quantity + 1
+        })).unwrap();
+      } catch (error) {
+        Alert.alert('Error', 'Failed to update quantity');
+      }
+    }
+  };
+
+  // Handle decrement/remove
+  const handleRemove = async (e) => {
+    e?.stopPropagation();
+
+    if (cartItem) {
+      try {
+        const newQuantity = cartItem.quantity - 1;
+        if (newQuantity > 0) {
+          await dispatch(updateCartItem({
+            itemId: cartItem.id,
+            quantity: newQuantity
+          })).unwrap();
+        } else {
+          await dispatch(deleteCartItem(cartItem.id)).unwrap();
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to update quantity');
+      }
+    }
+  };
+
+  const handleNavigateToDetails = () => {
+    navigation.navigate('ProductDetails', {
+      productfromRoute: product,
+      id: id
+    });
   };
 
   return (
-    <View style={styles.cardContainer}>
-      
+    <TouchableOpacity
+      style={styles.cardContainer}
+      activeOpacity={0.8}
+      onPress={handleNavigateToDetails}
+    >
+
       {/* Discount Badge */}
       {discount && (
         <View style={styles.discountBadge}>
@@ -52,26 +157,33 @@ const ProductCard = ({ product }) => {
       )}
 
       {/* Product Image */}
-      <Image 
-        source={{ uri: productImage }} 
-        style={styles.productImage}
-        defaultSource={require('../../../assets/images/product/milk.png')}
-      />
+      {productImage ? (
+        <Image
+          source={{ uri: productImage }}
+          style={styles.productImage}
+          defaultSource={require('../../../assets/images/product/milk.png')}
+        />
+      ) : (
+        <Image
+          source={require('../../../assets/images/product/milk.png')}
+          style={styles.productImage}
+        />
+      )}
 
       {/* Volume Badge */}
-      {/* <View style={styles.volumeBadge}> */}
-      <Sizebadge
-        size={50}
-        text={defaultSize}
-        bgColor="#E53935"
-        textColor="#fff"
-        style={styles.volumeBadge}
-      />
-      {/* </View> */}
+      {primarySizeName && (
+        <Sizebadge
+          size={50}
+          text={primarySizeName}
+          bgColor="#E53935"
+          textColor="#fff"
+          style={styles.volumeBadge}
+        />
+      )}
 
       {/* Veg / Non-Veg Mark */}
       <View style={styles.vegMarkBorder}>
-        <View style={[styles.vegDot, { backgroundColor: isVeg ? 'green' : 'red' }]} />
+        <View style={[styles.vegDot, { backgroundColor: isVeg === "Yes" ? 'green' : 'red' }]} />
       </View>
 
 
@@ -81,51 +193,67 @@ const ProductCard = ({ product }) => {
       </Text>
 
       {/* Render sizes in a flex row, separated by commas, show only 2, and '+N' if more */}
-      {sizes.length > 0 && (
+      {has_sizes && sizes.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
           {sizes.slice(0, 2).map((size, idx) => (
-            <React.Fragment key={idx}>
-              <Text style={styles.volumeSubText}>{size}</Text>
+            <React.Fragment key={size.id || idx}>
+              <Text style={styles.volumeSubText}>{size.sizeName}</Text>
               {idx < Math.min(1, sizes.length - 1) && (
                 <Text style={styles.volumeSubText}>, </Text>
               )}
             </React.Fragment>
           ))}
           {sizes.length > 2 && (
-            <Text style={styles.volumeSubText}>+{sizes.length - 2}</Text>
+            <Text style={styles.volumeSubText}> +{sizes.length - 2}</Text>
           )}
         </View>
       )}
 
       {/* Price Row */}
       <View style={styles.priceRow}>
-        <Text style={styles.offerPrice}>₹{offerPrice}</Text>
-        <Text style={styles.actualPrice}>₹{actualPrice}</Text>
+        {displayPrice && (
+          <Text style={styles.offerPrice}>₹{formatPrice(displayPrice)}</Text>
+        )}
+        {displayMrp && displayMrp !== displayPrice && (
+          <Text style={styles.actualPrice}>₹{formatPrice(displayMrp)}</Text>
+        )}
+        {!displayPrice && !displayMrp && (
+          <Text style={styles.offerPrice}>Price on request</Text>
+        )}
       </View>
       {/* Add / Remove Buttons */}
-      <View style={styles.actionRow}>
+      <View style={styles.actionRow} onStartShouldSetResponder={() => true}>
         {count === 0 ? (
-          <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAdd}
+          >
             <Text style={styles.addButtonText}>
               <Plus size={16} color="#00cd5cff" />
             </Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.counterBox}>
-            <TouchableOpacity style={styles.iconButton} onPress={handleRemove}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleRemove}
+            >
               <Minus size={18} color="#000" />
             </TouchableOpacity>
 
             <Text style={styles.countText}>{count}</Text>
 
-            <TouchableOpacity style={styles.iconButton} onPress={handleAdd}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleIncrement}
+            >
               <Plus size={18} color="#000" />
             </TouchableOpacity>
           </View>
         )}
       </View>
 
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -138,7 +266,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 10,
     margin: 10,
-    height:"auto",
     elevation: 4,
     overflow: 'hidden',
   },
@@ -260,7 +387,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: 8,
     position: 'absolute',
-    right:10,
+    right: 10,
     bottom: 10,
     alignItems: 'center',
   },

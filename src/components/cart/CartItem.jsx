@@ -62,7 +62,7 @@ const CartItem = ({
             <Text style={styles.productName} numberOfLines={2}>
               {name}
             </Text>
-            <TouchableOpacity 
+            {/* <TouchableOpacity 
               style={styles.favoriteButton}
               onPress={() => onToggleFavorite(id)}
             >
@@ -71,7 +71,7 @@ const CartItem = ({
                 color={isFavorite ? COLORS.ERROR : COLORS.GRAY}
                 fill={isFavorite ? COLORS.ERROR : 'transparent'}
               />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           <Text style={styles.productDescription} numberOfLines={2}>

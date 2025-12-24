@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { TouchableOpacity, View, Text, LayoutAnimation, StyleSheet } from 'react-native';
 import { Plus, Minus } from 'lucide-react-native'; // Correct import
 
-const AccordionItem = ({ title, content }) => {
-  const [open, setOpen] = useState(true);
+const AccordionItem = ({ title, content, defaultOpen = false }) => {
+  const [open, setOpen] = useState(defaultOpen);
   const toggle = () => {
     LayoutAnimation.easeInEaseOut();
     setOpen(!open);

@@ -1,29 +1,42 @@
 import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import COLORS from "../../../constants/Color";
-import { Clock, Phone } from "lucide-react-native"; // Lucide icon import
+import { Clock, Phone } from "lucide-react-native";
 
-const OrderCard = ({ item, onPress }) => {
-    const isCompleted = item.isCompleted;
-    const isActive = item.isActive;
+const OrderCard = ({ order, onPress }) => {
+    // Extract first line item for display
+    const firstItem = order?.lineItems?.[0];
+    const totalItems = order?.lineItems?.length || 0;
+
+    // Get product image from first item
+    const productImage = firstItem?.images?.[0]?.url || "https://via.placeholder.com/150";
+
+    // Determine order status
+    const deliveryStatus = order?.deliveryStatus || "PENDING";
+    const isActive = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(deliveryStatus);
+    const isCompleted = ['DELIVERED', 'COMPLETED'].includes(deliveryStatus);
+    const isCancelled = ['CANCELLED', 'REJECTED'].includes(deliveryStatus);
 
     // Function to get status background color based on status
     const getStatusBackgroundColor = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'pending':
+        switch (status?.toUpperCase()) {
+            case 'PENDING':
                 return '#FFF3CD'; // Light yellow
-            case 'confirmed':
+            case 'CONFIRMED':
                 return '#D1ECF1'; // Light blue
-            case 'preparing':
+            case 'PROCESSING':
+            case 'PREPARING':
                 return '#E2E3E5'; // Light gray
-            case 'shipped':
-            case 'out for delivery':
+            case 'SHIPPED':
+            case 'OUT_FOR_DELIVERY':
                 return '#D4EDDA'; // Light green
-            case 'delivered':
-                return '#8ADEFF'; // Light cyan (original color)
-            case 'cancelled':
+            case 'COMPLETED':
+            case 'DELIVERED':
+                return '#D4EDDA'; // Light green for completed
+            case 'CANCELLED':
+            case 'REJECTED':
                 return '#F8D7DA'; // Light red
-            case 'returned':
+            case 'RETURNED':
                 return '#E7E8EA'; // Light gray-blue
             default:
                 return '#8ADEFF'; // Default light cyan
@@ -32,70 +45,106 @@ const OrderCard = ({ item, onPress }) => {
 
     // Function to get status text color based on status
     const getStatusTextColor = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'pending':
+        switch (status?.toUpperCase()) {
+            case 'PENDING':
                 return '#856404'; // Dark yellow
-            case 'confirmed':
+            case 'CONFIRMED':
                 return '#0C5460'; // Dark blue
-            case 'preparing':
+            case 'PROCESSING':
+            case 'PREPARING':
                 return '#6C757D'; // Dark gray
-            case 'shipped':
-            case 'out for delivery':
+            case 'SHIPPED':
+            case 'OUT_FOR_DELIVERY':
                 return '#155724'; // Dark green
-            case 'delivered':
-                return COLORS.PRIMARY; // Primary color (original)
-            case 'cancelled':
+            case 'COMPLETED':
+            case 'DELIVERED':
+                return '#155724'; // Dark green for completed
+            case 'CANCELLED':
+            case 'REJECTED':
                 return '#721C24'; // Dark red
-            case 'returned':
+            case 'RETURNED':
                 return '#495057'; // Dark gray-blue
             default:
                 return COLORS.PRIMARY; // Default primary color
         }
     };
 
+    // Format status for display
+    const formatStatus = (status) => {
+        if (!status) return 'Pending';
+        return status.split('_').map(word =>
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+    };
+
+    // Build subtitle with quantity and size info
+    const buildSubtitle = () => {
+        if (!firstItem) return '';
+
+        const parts = [];
+        if (firstItem.quantity) {
+            parts.push(`${firstItem.quantity}x ${firstItem.medicineName}`);
+        } else {
+            parts.push(firstItem.medicineName);
+        }
+
+        if (firstItem.sizeName) {
+            parts.push(firstItem.sizeName);
+        }
+
+        if (totalItems > 1) {
+            parts.push(`+${totalItems - 1} more item${totalItems - 1 > 1 ? 's' : ''}`);
+        }
+
+        return parts.join(' • ');
+    };
+
     return (
-        <TouchableOpacity style={styles.container} >
+        <TouchableOpacity style={styles.container} onPress={onPress}>
             <View style={styles.card}>
-                <Image source={{ uri: item.image }} style={styles.img} />
+                <Image source={{ uri: productImage }} style={styles.img} />
                 <View style={{ flex: 1 }}>
                     {/* Title and Status */}
                     <View style={styles.rowBetween}>
-                        <Text style={styles.title}>{item.title}</Text>
+                        <Text style={styles.title} numberOfLines={1}>
+                            {firstItem?.medicineName || 'Order'}
+                        </Text>
                         <Text style={[
                             styles.status,
                             {
-                                backgroundColor: getStatusBackgroundColor(item.status),
-                                color: getStatusTextColor(item.status)  // ← Text color changes here
+                                backgroundColor: getStatusBackgroundColor(deliveryStatus),
+                                color: getStatusTextColor(deliveryStatus)
                             }
                         ]}>
-                            {item.status}
+                            {formatStatus(deliveryStatus)}
                         </Text>
                     </View>
 
-                    {/* Order Number for Active Orders */}
-                    {isActive && (
-                        <Text style={styles.orderNo}>Order #{item.orderNo}</Text>
-                    )}
-
-                    {/* Date for Completed Orders */}
-                    {isCompleted && (
-                        <Text style={styles.orderNo}>{item.deliveryDate}</Text>
-                    )}
+                    {/* Order ID */}
+                    <Text style={styles.orderNo}>Order #{order?.id?.slice(0, 8)}</Text>
                 </View>
             </View>
+
             {/* Items and Price */}
             <View style={styles.rowBetween}>
-                <Text style={styles.subtitle}>{item.subtitle}</Text>
-                <Text style={styles.price}>₹{item.price}</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>
+                    {buildSubtitle()}
+                </Text>
+                <Text style={styles.price}>₹{order?.finalAmount || '0'}</Text>
             </View>
 
             {/* Delivery Info */}
             <View style={styles.rowBetween}>
                 <Text style={styles.estimate}>
-                    {isActive ? "Estimated delivery" : "Already delivered"}
+                    {isActive ? "Estimated delivery" : isCompleted ? "Delivered on" : "Order placed"}
                 </Text>
                 <Text style={styles.estimateTime}>
-                    {isActive ? item.estimatedDelivery : item.deliveryTime}
+                    {order?.deliveryDate
+                        ? new Date(order.deliveryDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric'
+                        })
+                        : 'To be confirmed'}
                 </Text>
             </View>
 
@@ -110,18 +159,21 @@ const OrderCard = ({ item, onPress }) => {
                             <Phone color={COLORS.PRIMARY} size={22} />
                         </TouchableOpacity>
                     </>
-                ) : (
+                ) : isCompleted ? (
                     <>
                         <TouchableOpacity style={styles.buyAgainBtn} onPress={onPress}>
                             <Text style={styles.buyAgainText}>Buy Again</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.historyBtn}>
-                            <Text style={styles.historyText}><Clock color={COLORS.PRIMARY} size={22} /></Text>
+                            <Clock color={COLORS.PRIMARY} size={22} />
                         </TouchableOpacity>
                     </>
+                ) : (
+                    <TouchableOpacity style={styles.viewDetailsBtn} onPress={onPress}>
+                        <Text style={styles.viewDetailsText}>View Details</Text>
+                    </TouchableOpacity>
                 )}
             </View>
-
         </TouchableOpacity>
     );
 };
@@ -250,5 +302,18 @@ const styles = StyleSheet.create({
     },
     historyText: {
         fontSize: 20,
+    },
+    viewDetailsBtn: {
+        flex: 1,
+        backgroundColor: COLORS.PRIMARY,
+        borderRadius: 10,
+        paddingVertical: 12,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    viewDetailsText: {
+        color: COLORS.WHITE,
+        fontSize: 16,
+        fontWeight: "500",
     },
 });

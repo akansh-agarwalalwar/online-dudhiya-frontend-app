@@ -1,34 +1,62 @@
-import React, { useState, useRef, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, FlatList, ActivityIndicator } from "react-native";
-import { PanGestureHandler, State } from "react-native-gesture-handler";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, FlatList, ActivityIndicator, RefreshControl } from "react-native";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../redux/slices/authSlice";
+import COLORS from '../constants/Color';
 import Header from "../components/core/home/Header";
 import ImageCarousel from "../components/common/ImageCarousel";
 import ProductCard from "../components/core/product/ProductCard";
 import CategoryList from "../components/core/home/CategoryList";
 import ScreenWrapper from "../components/common/ScreenWrapper";
-import { fetchHomeSections } from "../redux/thunks/productThunk";
+import { fetchSections } from "../redux/thunks/sectionThunk";
 import Section from "../components/core/home/Section";
 import DhudhiyaSection from "../components/core/home/DhudhiyaSection";
 import Sidebar from "../components/core/home/Sidebar";
- const images = [
-    require('../assets/images/Banner/Banner1.png'),
-    require('../assets/images/Banner/Banner2.png'),
-    require('../assets/images/Banner/Banner3.png'),
-    require('../assets/images/Banner/Banner4.png'),
-  ];
+import useProfile from "../hooks/useProfile";
+import { selectCartItemsCount } from "../redux/slices/cartSlice";
+import { fetchCart } from "../redux/thunks/cartThunk";
+const images = [
+  require('../assets/images/Banner/Banner1.png'),
+  require('../assets/images/Banner/Banner2.png'),
+  require('../assets/images/Banner/Banner3.png'),
+  require('../assets/images/Banner/Banner4.png'),
+];
 export default function Home({ navigation }) {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { sections, loading, error } = useSelector((state) => state.products);
+  const { sections, loading, error } = useSelector((state) => state.sections);
+  const cartItemsCount = useSelector(selectCartItemsCount);
+
+  // Fetch user profile
+  const { profile, loading: profileLoading, refreshProfile } = useProfile();
 
   useEffect(() => {
-    dispatch(fetchHomeSections());
+    dispatch(fetchSections());
+    dispatch(fetchCart()); // Fetch cart to get the count
   }, [dispatch]);
+
+  // Get default address from profile
+  const defaultAddress = profile?.defaultAddress;
 
   // Sidebar state
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        dispatch(fetchSections()),
+        dispatch(fetchCart()),
+        refreshProfile()
+      ]);
+    } catch (error) {
+      console.error("Error refreshing home data:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, refreshProfile]);
 
   // Header animation state
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -46,6 +74,12 @@ export default function Home({ navigation }) {
 
   const handleSelectCategory = (cat) => {
     console.log("Selected Category:", cat);
+    // Navigate to Products screen with category filter
+    navigation.navigate('Products', {
+      categoryId: cat.id,
+      categorySlug: cat.slug,
+      categoryName: cat.name || cat.title
+    });
   };
 
   const openSidebar = () => {
@@ -58,21 +92,23 @@ export default function Home({ navigation }) {
   };
 
   // Handle swipe gesture to open sidebar
-  const onHandlerStateChange = (event) => {
-    const { state, translationX, absoluteX } = event.nativeEvent;
-    
-    if (state === State.END) {
-      // Check if gesture started from left edge (within 50px from left) and moved right significantly
-      if (absoluteX < 50 && translationX > 80 && !sidebarVisible) {
+
+  const panGesture = React.useMemo(() => Gesture.Pan()
+    .activeOffsetX(10)
+    .minPointers(1)
+    .maxPointers(1)
+    .runOnJS(true)
+    .onEnd((e) => {
+      // Check if gesture moved right significantly (simulating the previous logic)
+      if (e.translationX > 80) {
         openSidebar();
       }
-    }
-  };
+    }), [openSidebar]);
 
   const handleScroll = (event) => {
     const currentScrollY = event.nativeEvent.contentOffset.y;
     const scrollDifference = currentScrollY - lastScrollY.current;
-    
+
     // Determine scroll direction
     if (scrollDifference > 5 && scrollDirection.current !== 'down') {
       // Scrolling down - hide header
@@ -80,7 +116,7 @@ export default function Home({ navigation }) {
       if (isHeaderVisible) {
         setIsHeaderVisible(false);
         Animated.timing(headerTranslateY, {
-          toValue: -150, 
+          toValue: -150,
           duration: 300,
           useNativeDriver: true,
         }).start();
@@ -97,14 +133,14 @@ export default function Home({ navigation }) {
         }).start();
       }
     }
-    
+
     lastScrollY.current = currentScrollY;
   };
 
   return (
     <ScreenWrapper topSafeArea={false} bottomSafeArea={false} style={styles.container}>
       {/* Fixed Header */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.headerContainer,
           {
@@ -114,9 +150,11 @@ export default function Home({ navigation }) {
       >
         <Header
           title="Online Dhudhiya"
+          location={defaultAddress ? `${defaultAddress.address_line_1}, ${defaultAddress.city_district}` : "Add delivery address"}
+          onLocationPress={() => navigation.navigate("ManageAddress")}
           onMenuPress={openSidebar}
-          onCartPress={() => console.log("Cart opened")}
-          cartCount={3}
+          onCartPress={() => navigation.navigate("Cart")}
+          cartCount={cartItemsCount}
           handleSearchPress={handleSearchPress}
         />
       </Animated.View>
@@ -126,19 +164,27 @@ export default function Home({ navigation }) {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={1}
         showsVerticalScrollIndicator={false}
-        decelerationRate={0.8} // Use a numeric value for smooth, slow scroll
+        // decelerationRate={1} // Use a numeric value for smooth, slow scroll
         bounces={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.PRIMARY]}
+            tintColor={COLORS.PRIMARY}
+          />
+        }
       >
         {/* Content starts with some top padding to account for fixed header */}
-        <View style={styles.contentContainer}>   
+        <View style={styles.contentContainer}>
           <ImageCarousel
             data={images}
             height={200}
             onPressItem={(img) => console.log("Clicked:", img)}
           />
-          
+
           <CategoryList onSelect={handleSelectCategory} />
 
           {/* Loading State */}
@@ -153,9 +199,9 @@ export default function Home({ navigation }) {
           {error && !loading && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>Failed to load products</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.retryButton}
-                onPress={() => dispatch(fetchHomeSections())}
+                onPress={() => dispatch(fetchSections())}
               >
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
@@ -186,17 +232,12 @@ export default function Home({ navigation }) {
 
       {/* Left Edge Gesture Zone for Sidebar - Only active when sidebar is closed */}
       {!sidebarVisible && (
-        <PanGestureHandler
-          onHandlerStateChange={onHandlerStateChange}
-          activeOffsetX={10}
-          minPointers={1}
-          maxPointers={1}
-        >
+        <GestureDetector gesture={panGesture}>
           <View style={styles.gestureZone} />
-        </PanGestureHandler>
+        </GestureDetector>
       )}
-      
-      <Sidebar visible={sidebarVisible} onClose={closeSidebar} />
+
+      <Sidebar visible={sidebarVisible} onClose={closeSidebar} profile={profile} />
 
     </ScreenWrapper>
   );

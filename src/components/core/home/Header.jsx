@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import COLORS from "../../../constants/Color";
-import { ChevronDown, ShoppingBag, Menu } from "lucide-react-native";
+import { ChevronDown, ShoppingBag, Menu, Handbag } from "lucide-react-native";
 import SearchBar from "../../common/SearchBar";
 
 const Header = ({
@@ -36,7 +36,7 @@ const Header = ({
       <View style={styles.etaContainer}>
         {/* Right: Cart */}
         <TouchableOpacity onPress={onCartPress} style={styles.cartContainer}>
-          <ShoppingBag size={24} color={COLORS.BLACK} />
+          <Handbag size={28} strokeWidth={1.6} color={COLORS.BLACK} />
           {cartCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{cartCount}</Text>

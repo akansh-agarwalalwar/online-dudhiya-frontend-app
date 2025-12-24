@@ -14,6 +14,7 @@ const COLORS = {
   DARK: "#1A1A1A",
   GRAY: "#A0A0A0",
   LIGHT_GRAY: "#F2F2F2",
+  BACKGROUND: "#F5F5F5",
 
   // Accent Colors
   SUCCESS: "#4CAF50",

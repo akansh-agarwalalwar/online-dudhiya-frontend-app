@@ -13,30 +13,70 @@ import {
   Keyboard,
   StatusBar,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import LinearGradient from 'react-native-linear-gradient';
-import { Check } from 'lucide-react-native';
+import { Check, Loader } from 'lucide-react-native';
 import COLORS from '../constants/Color';
+import { useAuthActions, useAuthState } from '../contexts/AuthContext';
+import { useDispatch } from 'react-redux';
+import { guestLogin } from '../redux/slices/authSlice';
 
 export default function Login({ navigation }) {
+  const dispatch = useDispatch();
   const [mobile, setMobile] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [error, setError] = useState("");
+  const [localError, setLocalError] = useState("");
 
-  const handleLogin = () => {
+  // Auth context
+  const { requestOTP } = useAuthActions();
+  const { isLoading, error } = useAuthState();
+
+  const handleLogin = async () => {
     const digits = mobile.replace(/\D/g, "");
+
+    // Validate phone number
     if (digits.length !== 10) {
-      setError("Please enter a valid 10-digit mobile number.");
+      setLocalError("Please enter a valid 10-digit mobile number.");
       return;
     }
-    // if (!acceptedTerms) {
-    //   setError("Please accept the Terms & Conditions to continue.");
-    //   return;
-    // }
-    setError("");
-    navigation.navigate("OtpVerification", { phone: digits });
+
+    // Clear previous errors
+    setLocalError("");
+
+    try {
+      // Request OTP through auth service
+      const result = await requestOTP(digits, 'LOGIN');
+
+      if (result.success) {
+        // Show success message
+        navigation.navigate("OtpVerification", {
+          phone: digits,
+          message: result.message
+        })
+        // Alert.alert(
+        //   "OTP Sent",
+        //   result.message || `OTP has been sent to ${digits}`,
+        //   [
+        //     {
+        //       text: "OK",
+        //       onPress: () => 
+        //     }
+        //   ]
+        // );
+      }
+    } catch (error) {
+      console.error('Login OTP request error:', error);
+
+      // Show error alert
+      Alert.alert(
+        "Error",
+        error.message || "Failed to send OTP. Please try again.",
+        [{ text: "OK" }]
+      );
+    }
   };
 
   return (
@@ -80,45 +120,87 @@ export default function Login({ navigation }) {
                    */}
                 {/* </Pressable> */}
 
-                {error ? <Text style={styles.error}>{error}</Text> : null}
+                {(localError || error) ? (
+                  <Text style={styles.error}>
+                    {localError || error}
+                  </Text>
+                ) : null}
 
                 <TouchableOpacity
                   style={[
                     styles.button,
-                    (mobile.replace(/\D/g, "").length !== 10) && styles.buttonDisabled,
+                    (mobile.replace(/\D/g, "").length !== 10 || isLoading) && styles.buttonDisabled,
                   ]}
                   onPress={handleLogin}
-                  disabled={mobile.replace(/\D/g, "").length !== 10}
+                  disabled={mobile.replace(/\D/g, "").length !== 10 || isLoading}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.buttonText}>Send OTP</Text>
+                  <View style={styles.buttonContent}>
+                    {isLoading && (
+                      <Loader
+                        size={20}
+                        color={COLORS.WHITE}
+                        style={styles.loadingIcon}
+                      />
+                    )}
+                    <Text style={styles.buttonText}>
+                      {isLoading ? "Sending OTP..." : "Send OTP"}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
-
-                <Text style={{ marginTop: 24, textAlign: "center", color: COLORS.PRIMARY, fontSize: 16, fontWeight: '500' }}>
-                  Continue As Guest
-                </Text>
-
                 <View style={styles.dividerContainer}>
                   <View style={styles.dividerLine} />
                   <Text style={styles.dividerText}>OR</Text>
                   <View style={styles.dividerLine} />
                 </View>
+                <Text onPress={() => {
+                  dispatch(guestLogin());
+                  navigation.navigate('GuestLogin');
+                }} style={{ marginTop: -4, textAlign: "center", color: COLORS.PRIMARY, fontSize: 16, fontWeight: '500', borderWidth: 1, borderColor: COLORS.PRIMARY, padding: 10, borderRadius: 8 }}>
+                  Continue As Guest
+                </Text>
+
+
+
+                {/* <View style={styles.dividerContainer}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>OR</Text>
+                  <View style={styles.dividerLine} />
+                </View>
                 <TouchableOpacity
-                  style={styles.googleButton}
-                // onPress={handleGoogleLogin}
-                // disabled={isLoading}
-                >
+                  style={styles.googleButton} */}
+                {/* // onPress={handleGoogleLogin}
+                // disabled={isLoading} */}
+                {/* >
                   <Image
                     source={require('../assets/images/logos/google.png')}
                     style={styles.googleIcon}
                   />
                   <Text style={styles.googleButtonText}>Continue with Google</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
 
             </ScrollView>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
+        <View style={{ marginTop: 150, position: 'absolute', bottom: 30, marginHorizontal: 'auto', width: '100%' }}>
+          <Text style={{ textAlign: "center", color: COLORS.GRAY, fontSize: 12 }}>
+            By continuing, you agree to our{' '}
+            <Text
+              style={{ color: COLORS.PRIMARY, fontWeight: 'bold' }}
+              onPress={() => navigation.navigate('TermsAndConditions')}
+            >
+              Terms of Service
+            </Text>
+            {' '}and{' '}
+            <Text
+              style={{ color: COLORS.PRIMARY, fontWeight: 'bold' }}
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            >
+              Privacy Policy
+            </Text>
+          </Text>
+        </View>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -179,6 +261,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.GRAY,
   },
   buttonText: { color: COLORS.WHITE, fontSize: 16, fontWeight: "700" },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingIcon: {
+    marginRight: 8,
+  },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',

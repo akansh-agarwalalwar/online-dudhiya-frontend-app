@@ -33,6 +33,7 @@ const Section = ({ section }) => {
   if (!section) {
     return null;
   }
+  console.log(section, 'at section component');
 
   const handleImageLoad = useCallback(() => {
     setImageLoading(false);
@@ -47,12 +48,15 @@ const Section = ({ section }) => {
     setShowAllProducts(!showAllProducts);
   }, [showAllProducts]);
 
-  // Display limited products initially, all when expanded
-  const displayProducts = showAllProducts 
-    ? section.products 
-    : section.products?.slice(0, 6) || [];
+  // Get products from either 'products' or 'medicines' array (handling new data structure)
+  const products = section.products || section.medicines || [];
 
-  const hasMoreProducts = section.products && section.products.length > 6;
+  // Display limited products initially, all when expanded
+  const displayProducts = showAllProducts
+    ? products
+    : products.slice(0, 6);
+
+  const hasMoreProducts = products && products.length > 6;
 
   const renderProductItem = useCallback(({ item }) => (
     <ProductCard product={item} />
@@ -67,17 +71,17 @@ const Section = ({ section }) => {
   return (
     <View style={styles.sectionContainer}>
       {/* Render Banner if available */}
-      {section.showSectionImage && section.sectionImage && (
-        <View style={[styles.bannerWrapper, { backgroundColor: bannerBgColor }]}> 
+      {((section.showSectionImage && section.sectionImage) || section.imageUrl) && (
+        <View style={[styles.bannerWrapper, { backgroundColor: bannerBgColor }]}>
           {imageLoading && !imageError && (
             <View style={styles.imageLoadingContainer}>
               <ActivityIndicator size="small" color="#1ea6ff" />
             </View>
           )}
-          
+
           {!imageError && (
-            <Image 
-              source={{ uri: section.sectionImage }} 
+            <Image
+              source={{ uri: section.sectionImage || section.imageUrl }}
               style={styles.bannerImage}
               onLoad={handleImageLoad}
               onError={handleImageError}
@@ -92,10 +96,10 @@ const Section = ({ section }) => {
           )}
 
           {/* Title over banner */}
-          {section.title && (
+          {(section.title || section.name) && (
             <View style={styles.bannerTextContainer}>
               <Text style={styles.bannerText} numberOfLines={2}>
-                {section.title}
+                {section.title || section.name}
               </Text>
             </View>
           )}
@@ -103,11 +107,11 @@ const Section = ({ section }) => {
       )}
 
       {/* Section Header for non-banner sections */}
-      {!section.showSectionImage && (
+      {!section.showSectionImage && !section.imageUrl && (
         <View style={styles.sectionHeader}>
-          {section.title && (
+          {(section.title || section.name) && (
             <Text style={styles.sectionTitle} numberOfLines={1}>
-              {section.title}
+              {section.title || section.name}
             </Text>
           )}
           {hasMoreProducts && (
@@ -121,21 +125,23 @@ const Section = ({ section }) => {
       )}
 
       {/* Product List */}
-      {section.products && section.products.length > 0 ? (
+      {products && products.length > 0 ? (
         <FlatList
           horizontal={!showAllProducts}
           numColumns={showAllProducts ? 2 : 1}
+          numberOfLines={2}
           key={showAllProducts ? 'grid' : 'horizontal'}
           data={displayProducts}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => (item.id || item.slug || Math.random()).toString()}
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
           renderItem={renderProductItem}
           contentContainerStyle={
-            showAllProducts 
-              ? styles.gridContainer 
+            showAllProducts
+              ? styles.gridContainer
               : styles.horizontalContainer
           }
+          columnWrapperStyle={showAllProducts ? { alignItems: 'flex-start' } : undefined}
           scrollEnabled={!showAllProducts}
           getItemLayout={showAllProducts ? undefined : (data, index) => ({
             length: 160,
@@ -152,15 +158,15 @@ const Section = ({ section }) => {
       )}
 
       {/* View All button for banner sections */}
-      {section.showSectionImage && hasMoreProducts && (
+      {/* {(section.showSectionImage || section.imageUrl) && hasMoreProducts && (
         <View style={styles.viewAllContainer}>
           <TouchableOpacity onPress={toggleShowAll} style={styles.viewAllButtonBanner}>
             <Text style={styles.viewAllTextBanner}>
-              {showAllProducts ? 'View Less' : `View All (${section.products.length})`}
+              {showAllProducts ? 'View Less' : `View All (${products.length})`}
             </Text>
           </TouchableOpacity>
         </View>
-      )}
+      )} */}
     </View>
   );
 };
@@ -274,11 +280,14 @@ const styles = StyleSheet.create({
 
   // Product containers
   horizontalContainer: {
+    position: 'relative',
     paddingHorizontal: 12,
     paddingVertical: 16,
+    alignItems: 'flex-start',
   },
 
   gridContainer: {
+    position: 'relative',
     paddingHorizontal: 12,
     paddingVertical: 16,
   },
@@ -299,24 +308,24 @@ const styles = StyleSheet.create({
 
   // View all button for banner sections
   viewAllContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    position: 'absolute',
+    top: 170,
+    right: 10,
   },
 
   viewAllButtonBanner: {
-    backgroundColor: '#f8f9fa',
+    // backgroundColor: '#fff',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 25,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#1ea6ff',
+    // borderWidth: 2,
+    // borderColor: '#1ea6ff',
   },
 
   viewAllTextBanner: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1ea6ff',
+    color: '#323232ff',
   },
 });
 
