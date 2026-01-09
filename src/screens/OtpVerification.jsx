@@ -13,6 +13,7 @@ import COLORS from "../constants/Color";
 import { Edit, Icon, Pen, ChevronLeft, Loader } from "lucide-react-native";
 import { ScreenWrapper } from "../components/common/ScreenWrapper";
 import { useAuthActions, useAuthState } from "../contexts/AuthContext";
+import { setRedirectScreen } from "../redux/slices/authSlice";
 
 const OtpVerificationScreen = ({ route, navigation }) => {
   const dispatch = useDispatch();
@@ -56,6 +57,36 @@ const OtpVerificationScreen = ({ route, navigation }) => {
       const result = await verifyOTP(phone, otp);
 
       if (result.success) {
+        // Debug: Log the entire user object
+        console.log('🔍 OTP Verification - Full result:', JSON.stringify(result, null, 2));
+        console.log('🔍 OTP Verification - User object:', result.user);
+        console.log('🔍 OTP Verification - User name:', result.user?.name);
+        console.log('🔍 OTP Verification - User name type:', typeof result.user?.name);
+
+        // Check if user has a name
+        const hasName = result.user?.name && result.user.name.trim() !== '';
+        console.log('🔍 OTP Verification - hasName:', hasName);
+
+        // Update Redux state for compatibility
+        dispatch({
+          type: "auth/loginSuccess",
+          payload: {
+            token: result.token,
+            user: result.user,
+          },
+        });
+
+        // Set redirect screen based on user profile completeness
+        if (!hasName) {
+          // User doesn't have a name, set redirect to EditProfile
+          console.log('📍 Redirecting to EditProfile (no name)');
+          dispatch(setRedirectScreen('EditProfile'));
+        } else {
+          // User has a name, set redirect to Home (or null to go to default)
+          console.log('📍 Redirecting to Home (has name)');
+          dispatch(setRedirectScreen('MainTabs'));
+        }
+
         // Show success message
         Alert.alert(
           "Success",
@@ -64,17 +95,8 @@ const OtpVerificationScreen = ({ route, navigation }) => {
             {
               text: "OK",
               onPress: () => {
-                // Update Redux state for compatibility
-                dispatch({
-                  type: "auth/loginSuccess",
-                  payload: {
-                    token: result.token,
-                    user: result.user,
-                  },
-                });
-
-                // Navigation is handled automatically by AppNavigator based on token state
-                // No manual navigation required
+                // Navigation will be handled automatically by MainTabs
+                // based on the redirectScreen value we set above
               }
             }
           ]

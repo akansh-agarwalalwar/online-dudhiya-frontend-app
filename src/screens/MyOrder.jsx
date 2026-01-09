@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Image, ScrollView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Image, ScrollView, Alert, TextInput } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import COLORS from "../constants/Color";
 import OrderCard from "../components/core/Order/OrderCard";
 import BottomSheet from "../components/common/BottomSheet";
 import AppHeader from "../components/common/AppHeader";
-import { Mail, Phone, User, Package, Truck, CheckCircle } from "lucide-react-native";
-import { getCustomerOrders } from "../redux/thunks/orderThunk";
+import SizePickerModal from "../components/common/SizePickerModal";
+import { Mail, Phone, User, Package, Truck, CheckCircle, ShoppingCart } from "lucide-react-native";
+import { getCustomerOrders, cancelOrder } from "../redux/thunks/orderThunk";
 import { selectOrders, selectOrderLoading, selectOrderError } from "../redux/slices/orderSlice";
+import { addToCart } from "../redux/thunks/cartThunk";
+import { selectCartLoading } from "../redux/slices/cartSlice";
+import medicineService from "../services/MedicineService";
 
 const MyOrdersScreen = () => {
   const navigation = useNavigation();
@@ -16,11 +20,21 @@ const MyOrdersScreen = () => {
   const [tab, setTab] = useState("Active");
   const [showSheet, setShowSheet] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [buyAgainLoading, setBuyAgainLoading] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Size picker state
+  const [showSizePicker, setShowSizePicker] = useState(false);
+  const [sizePickerData, setSizePickerData] = useState(null);
+  const [pendingItems, setPendingItems] = useState([]);
 
   // Redux state
   const orders = useSelector(selectOrders);
   const loading = useSelector(selectOrderLoading);
   const error = useSelector(selectOrderError);
+  const cartLoading = useSelector(selectCartLoading);
 
   // Fetch orders on mount
   useEffect(() => {
@@ -35,18 +49,22 @@ const MyOrdersScreen = () => {
     switch (tab) {
       case "Active":
         // Active orders: PENDING, PROCESSING, SHIPPED, OUT_FOR_DELIVERY
+        // AND not cancelled/rejected via orderStatus
         return orders.filter(order =>
-          ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(order.deliveryStatus)
+          ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(order.deliveryStatus) &&
+          !['CANCELLED', 'CANCELLED_BY_CUSTOMER', 'REJECTED'].includes(order.orderStatus)
         );
       case "Completed":
         // Completed orders: COMPLETED or DELIVERED
         return orders.filter(order =>
-          ['COMPLETED', 'DELIVERED'].includes(order.deliveryStatus)
+          ['COMPLETED', 'DELIVERED'].includes(order.deliveryStatus) &&
+          !['CANCELLED', 'CANCELLED_BY_CUSTOMER', 'REJECTED'].includes(order.orderStatus)
         );
       case "Cancelled":
-        // Cancelled orders: CANCELLED, REJECTED
+        // Cancelled orders: CANCELLED, REJECTED (either status)
         return orders.filter(order =>
-          ['CANCELLED', 'REJECTED'].includes(order.deliveryStatus)
+          ['CANCELLED', 'REJECTED'].includes(order.deliveryStatus) ||
+          ['CANCELLED', 'CANCELLED_BY_CUSTOMER', 'REJECTED'].includes(order.orderStatus)
         );
       default:
         return orders;
@@ -64,6 +82,7 @@ const MyOrdersScreen = () => {
       case 'COMPLETED':
       case 'DELIVERED': return '#D4EDDA';
       case 'CANCELLED':
+      case 'CANCELLED_BY_CUSTOMER':
       case 'REJECTED': return '#F8D7DA';
       case 'RETURNED': return '#E7E8EA';
       default: return '#8ADEFF';
@@ -81,6 +100,7 @@ const MyOrdersScreen = () => {
       case 'COMPLETED':
       case 'DELIVERED': return '#155724';
       case 'CANCELLED':
+      case 'CANCELLED_BY_CUSTOMER':
       case 'REJECTED': return '#721C24';
       case 'RETURNED': return '#495057';
       default: return COLORS.PRIMARY;
@@ -127,7 +147,135 @@ const MyOrdersScreen = () => {
 
   const openDetails = (order) => {
     setSelectedOrder(order);
+    setIsCancelling(false);
+    setCancelReason("");
     setShowSheet(true);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      Alert.alert("Error", "Please provide a reason for cancellation");
+      return;
+    }
+
+    setCancelLoading(true);
+    try {
+      await dispatch(cancelOrder({
+        orderId: selectedOrder.id,
+        reason: cancelReason
+      })).unwrap();
+
+      Alert.alert("Success", "Order cancelled successfully");
+      setShowSheet(false);
+      // Refresh orders
+      dispatch(getCustomerOrders());
+    } catch (err) {
+      Alert.alert("Error", err?.message || "Failed to cancel order");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleBuyAgain = async (order) => {
+    if (!order || !order.lineItems || order.lineItems.length === 0) {
+      Alert.alert('Error', 'No items found in this order');
+      return;
+    }
+
+    setBuyAgainLoading(true);
+    const failedItems = [];
+    let successCount = 0;
+
+    try {
+      // Add each item from the order to the cart
+      for (const item of order.lineItems) {
+        const payload = {
+          medicineId: item.medicineId,
+          quantity: item.quantity,
+          sizeId: item.sizeId || undefined,
+          // Include product details for guest cart
+          product: {
+            id: item.medicineId,
+            productName: item.medicineName,
+            sale_price: item.salePriceAtOrder,
+            images: item.images || [],
+            sizes: item.sizeId ? [{
+              id: item.sizeId,
+              sizeName: item.sizeName,
+              salePrice: item.salePriceAtOrder
+            }] : []
+          }
+        };
+
+        try {
+          await dispatch(addToCart(payload)).unwrap();
+          successCount++;
+        } catch (itemError) {
+          console.warn(`Failed to add item ${item.medicineName}:`, itemError);
+
+          // Check if error is due to missing size selection
+          const errorMessage = itemError?.message || String(itemError);
+          if (errorMessage.includes('select a size')) {
+            failedItems.push(`${item.medicineName} - Please select size from product page`);
+          } else if (errorMessage.includes('Price is unavailable')) {
+            failedItems.push(`${item.medicineName} (price changed)`);
+          } else {
+            failedItems.push(item.medicineName || 'Item');
+          }
+        }
+      }
+
+      if (successCount === 0 && failedItems.length > 0) {
+        Alert.alert(
+          'Unable to Add Items',
+          `Could not add items to cart:\n\n${failedItems.join('\n')}\n\nPlease add these items manually from the product page.`
+        );
+      } else if (failedItems.length > 0) {
+        Alert.alert(
+          'Partial Success',
+          `Added ${successCount} items. Could not add: ${failedItems.join(', ')}.`,
+          [
+            {
+              text: 'OK',
+              style: 'cancel'
+            },
+            {
+              text: 'Go to Cart',
+              onPress: () => {
+                setShowSheet(false);
+                navigation.navigate('Cart');
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Success',
+          'All items have been added to your cart!',
+          [
+            {
+              text: 'Continue Shopping',
+              style: 'cancel'
+            },
+            {
+              text: 'Go to Cart',
+              onPress: () => {
+                setShowSheet(false);
+                navigation.navigate('Cart');
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Buy Again System Error:', error);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while processing your request.'
+      );
+    } finally {
+      setBuyAgainLoading(false);
+    }
   };
 
   const getProgressWidth = (status) => {
@@ -219,126 +367,214 @@ const MyOrdersScreen = () => {
       {/* Bottom Sheet */}
       <BottomSheet visible={showSheet} onClose={() => setShowSheet(false)}>
         {selectedOrder && (
-          <ScrollView style={styles.sheetContent} showsVerticalScrollIndicator={false}>
-            {/* Header */}
-            <View style={styles.sheetHeader}>
+          <View style={styles.sheetContent}>
+            {!isCancelling ? (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Header */}
+                <View style={styles.sheetHeader}>
+                  <View>
+                    <Text style={styles.sheetOrderNo}>Order #{selectedOrder.orderNo}</Text>
+                    <Text style={styles.dateText}>
+                      {getDeliveryStatusText(selectedOrder)}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusBackgroundColor(selectedOrder.orderStatus === 'CANCELLED_BY_CUSTOMER' ? 'CANCELLED_BY_CUSTOMER' : selectedOrder.deliveryStatus) }
+                  ]}>
+                    <Text style={[
+                      styles.statusText,
+                      { color: getStatusTextColor(selectedOrder.orderStatus === 'CANCELLED_BY_CUSTOMER' ? 'CANCELLED_BY_CUSTOMER' : selectedOrder.deliveryStatus) }
+                    ]}>
+                      {selectedOrder.orderStatus === 'CANCELLED_BY_CUSTOMER' ? 'Cancelled' : selectedOrder.deliveryStatus}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Horizontal Tracker */}
+                {['PENDING', 'CONFIRMED', 'PROCESSING', 'PREPARING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) && (
+                  <View style={styles.trackingContainer}>
+                    {/* Progress Bar Container */}
+                    <View style={styles.progressBarBackground}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          { width: getProgressWidth(selectedOrder.deliveryStatus) }
+                        ]}
+                      />
+                    </View>
+
+                    {/* Steps */}
+                    <View style={styles.stepsContainer}>
+                      {/* Step 1: Placed */}
+                      <View style={styles.step}>
+                        <View style={[styles.iconContainer, styles.activeIconContainer]}>
+                          <Package size={18} color={COLORS.WHITE} />
+                        </View>
+                        <Text style={[styles.stepText, styles.activeStepText]}>Placed</Text>
+                      </View>
+
+                      {/* Step 2: Out for Delivery */}
+                      <View style={styles.step}>
+                        <View style={[
+                          styles.iconContainer,
+                          ['SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? styles.activeIconContainer : styles.inactiveIconContainer
+                        ]}>
+                          <Truck
+                            size={18}
+                            color={['SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? COLORS.WHITE : COLORS.GRAY}
+                          />
+                        </View>
+                        <Text style={[
+                          styles.stepText,
+                          ['SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) && styles.activeStepText
+                        ]}>Out for Delivery</Text>
+                      </View>
+
+                      {/* Step 3: Delivered */}
+                      <View style={styles.step}>
+                        <View style={[
+                          styles.iconContainer,
+                          ['COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? styles.activeIconContainer : styles.inactiveIconContainer
+                        ]}>
+                          <CheckCircle
+                            size={18}
+                            color={['COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? COLORS.WHITE : COLORS.GRAY}
+                          />
+                        </View>
+                        <Text style={[
+                          styles.stepText,
+                          ['COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) && styles.activeStepText
+                        ]}>Delivered</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Items List */}
+                <Text style={styles.sectionHeader}>Items</Text>
+                {selectedOrder.lineItems?.map((item, index) => (
+                  <View key={index} style={styles.itemRow}>
+                    <Image
+                      source={{ uri: item.images?.[0]?.url || 'https://via.placeholder.com/80' }}
+                      style={styles.itemImage}
+                    />
+                    <View style={styles.itemDetails}>
+                      <Text style={styles.itemName} numberOfLines={2}>{item.medicineName}</Text>
+                      <Text style={styles.itemSub}>
+                        {item.sizeName ? `${item.sizeName} • ` : ''}Qty: {item.quantity}
+                      </Text>
+                      <Text style={styles.itemPrice}>₹{item.salePriceAtOrder}</Text>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Order Summary */}
+                <View style={styles.billSection}>
+                  <Text style={styles.sectionHeader}>Payment Summary</Text>
+                  <View style={styles.billRow}>
+                    <Text style={styles.billLabel}>Subtotal</Text>
+                    <Text style={styles.billValue}>₹{selectedOrder.totalAmount}</Text>
+                  </View>
+                  <View style={styles.billRow}>
+                    <Text style={styles.billLabel}>Payment Status</Text>
+                    <Text style={[
+                      styles.billValue,
+                      {
+                        color: (selectedOrder.deliveryStatus === 'DELIVERED' || selectedOrder.payment?.status === 'PAID')
+                          ? COLORS.PRIMARY
+                          : (selectedOrder.payment?.status === 'FAILED' ? '#DC3545' : COLORS.GRAY)
+                      }
+                    ]}>
+                      {selectedOrder.deliveryStatus === 'DELIVERED' ? 'Paid' : (selectedOrder.payment?.status || 'Unpaid')}
+                    </Text>
+                  </View>
+                  <View style={[styles.billRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Total Amount</Text>
+                    <Text style={styles.totalValue}>₹{selectedOrder.finalAmount}</Text>
+                  </View>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.actionButtonsContainer}>
+                  {/* Track Delivery Button */}
+                  {['SHIPPED', 'OUT_FOR_DELIVERY'].includes(selectedOrder.deliveryStatus) && (
+                    <TouchableOpacity style={styles.trackSheetBtn}>
+                      <Text style={styles.trackSheetBtnText}>Track Delivery</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Buy Again Button - Only for Completed/Delivered Orders */}
+                  {['COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) && (
+                    <TouchableOpacity
+                      style={[styles.buyAgainBtn, buyAgainLoading && styles.buyAgainBtnDisabled]}
+                      onPress={() => handleBuyAgain(selectedOrder)}
+                      disabled={buyAgainLoading}
+                    >
+                      {buyAgainLoading ? (
+                        <ActivityIndicator size="small" color={COLORS.WHITE} />
+                      ) : (
+                        <>
+                          <ShoppingCart size={18} color={COLORS.WHITE} style={styles.buyAgainIcon} />
+                          <Text style={styles.buyAgainBtnText}>Buy Again</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                  {/* Cancel Button - Only for Pending/Processing Orders AND Not already cancelled */}
+                  {['PENDING', 'PROCESSING', 'CONFIRMED', 'PREPARING'].includes(selectedOrder.deliveryStatus) &&
+                    !['CANCELLED', 'CANCELLED_BY_CUSTOMER', 'REJECTED'].includes(selectedOrder.orderStatus) && (
+                      <TouchableOpacity
+                        style={styles.cancelBtn}
+                        onPress={() => setIsCancelling(true)}
+                      >
+                        <Text style={styles.cancelBtnText}>Cancel Order</Text>
+                      </TouchableOpacity>
+                    )}
+                </View>
+              </ScrollView>
+            ) : (
               <View>
-                <Text style={styles.sheetOrderNo}>Order #{selectedOrder.orderNo}</Text>
-                <Text style={styles.dateText}>
-                  {getDeliveryStatusText(selectedOrder)}
+                <Text style={styles.sheetTitle}>Cancel Order</Text>
+                <Text style={styles.sheetSubTitle}>
+                  Are you sure you want to cancel Order #{selectedOrder.orderNo}?
                 </Text>
-              </View>
-              <View style={[
-                styles.statusBadge,
-                { backgroundColor: getStatusBackgroundColor(selectedOrder.deliveryStatus) }
-              ]}>
-                <Text style={[
-                  styles.statusText,
-                  { color: getStatusTextColor(selectedOrder.deliveryStatus) }
-                ]}>
-                  {selectedOrder.deliveryStatus}
-                </Text>
-              </View>
-            </View>
 
-            {/* Horizontal Tracker */}
-            {['PENDING', 'CONFIRMED', 'PROCESSING', 'PREPARING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) && (
-              <View style={styles.trackingContainer}>
-                {/* Progress Bar Container */}
-                <View style={styles.progressBarBackground}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: getProgressWidth(selectedOrder.deliveryStatus) }
-                    ]}
-                  />
-                </View>
-
-                {/* Steps */}
-                <View style={styles.stepsContainer}>
-                  {/* Step 1: Placed */}
-                  <View style={styles.step}>
-                    <View style={[styles.iconContainer, styles.activeIconContainer]}>
-                      <Package size={18} color={COLORS.WHITE} />
-                    </View>
-                    <Text style={[styles.stepText, styles.activeStepText]}>Placed</Text>
-                  </View>
-
-                  {/* Step 2: Out for Delivery */}
-                  <View style={styles.step}>
-                    <View style={[
-                      styles.iconContainer,
-                      ['SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? styles.activeIconContainer : styles.inactiveIconContainer
-                    ]}>
-                      <Truck
-                        size={18}
-                        color={['SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? COLORS.WHITE : COLORS.GRAY}
-                      />
-                    </View>
-                    <Text style={[
-                      styles.stepText,
-                      ['SHIPPED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) && styles.activeStepText
-                    ]}>Out for Delivery</Text>
-                  </View>
-
-                  {/* Step 3: Delivered */}
-                  <View style={styles.step}>
-                    <View style={[
-                      styles.iconContainer,
-                      ['COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? styles.activeIconContainer : styles.inactiveIconContainer
-                    ]}>
-                      <CheckCircle
-                        size={18}
-                        color={['COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) ? COLORS.WHITE : COLORS.GRAY}
-                      />
-                    </View>
-                    <Text style={[
-                      styles.stepText,
-                      ['COMPLETED', 'DELIVERED'].includes(selectedOrder.deliveryStatus) && styles.activeStepText
-                    ]}>Delivered</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Items List */}
-            <Text style={styles.sectionHeader}>Items</Text>
-            {selectedOrder.lineItems?.map((item, index) => (
-              <View key={index} style={styles.itemRow}>
-                <Image
-                  source={{ uri: item.images?.[0]?.url || 'https://via.placeholder.com/80' }}
-                  style={styles.itemImage}
+                <Text style={styles.inputLabel}>Reason for Cancellation</Text>
+                <TextInput
+                  style={styles.reasonInput}
+                  placeholder="Tell us why you want to cancel..."
+                  value={cancelReason}
+                  onChangeText={setCancelReason}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
                 />
-                <View style={styles.itemDetails}>
-                  <Text style={styles.itemName} numberOfLines={2}>{item.medicineName}</Text>
-                  <Text style={styles.itemSub}>
-                    {item.sizeName ? `${item.sizeName} • ` : ''}Qty: {item.quantity}
-                  </Text>
-                  <Text style={styles.itemPrice}>₹{item.salePriceAtOrder}</Text>
+
+                <View style={styles.actionButtonsContainer}>
+                  <TouchableOpacity
+                    style={[styles.confirmCancelBtn, cancelLoading && styles.disabledBtn]}
+                    onPress={handleCancelOrder}
+                    disabled={cancelLoading}
+                  >
+                    {cancelLoading ? (
+                      <ActivityIndicator color={COLORS.WHITE} size="small" />
+                    ) : (
+                      <Text style={styles.confirmCancelBtnText}>Confirm Cancellation</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.backBtn}
+                    onPress={() => setIsCancelling(false)}
+                    disabled={cancelLoading}
+                  >
+                    <Text style={styles.backBtnText}>Go Back</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            ))}
-
-            {/* Order Summary */}
-            <View style={styles.billSection}>
-              <Text style={styles.sectionHeader}>Payment Summary</Text>
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Subtotal</Text>
-                <Text style={styles.billValue}>₹{selectedOrder.totalAmount}</Text>
-              </View>
-              <View style={[styles.billRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Total Amount</Text>
-                <Text style={styles.totalValue}>₹{selectedOrder.finalAmount}</Text>
-              </View>
-            </View>
-
-            {/* Action Buttons (Optional placeholder for tracking if needed later) */}
-            {['SHIPPED', 'OUT_FOR_DELIVERY'].includes(selectedOrder.deliveryStatus) && (
-              <TouchableOpacity style={styles.trackSheetBtn}>
-                <Text style={styles.trackSheetBtnText}>Track Delivery</Text>
-              </TouchableOpacity>
             )}
-          </ScrollView>
+          </View>
         )}
       </BottomSheet>
     </View>
@@ -546,15 +782,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.PRIMARY,
   },
+  actionButtonsContainer: {
+    marginTop: 10,
+    gap: 12,
+  },
   trackSheetBtn: {
     backgroundColor: COLORS.PRIMARY,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
   },
   trackSheetBtnText: {
+    color: COLORS.WHITE,
     fontWeight: '600',
+    fontSize: 16,
+  },
+  buyAgainBtn: {
+    backgroundColor: COLORS.PRIMARY,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  buyAgainBtnDisabled: {
+    opacity: 0.6,
+  },
+  buyAgainIcon: {
+    marginRight: 8,
+  },
+  buyAgainBtnText: {
+    color: COLORS.WHITE,
+    fontWeight: '600',
+    fontSize: 16,
   },
   trackingContainer: {
     marginVertical: 20,
@@ -614,5 +874,71 @@ const styles = StyleSheet.create({
   activeStepText: {
     color: COLORS.PRIMARY,
     fontWeight: '700',
+  },
+  cancelBtn: {
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#DC3545',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    color: '#DC3545',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.DARK,
+    marginBottom: 8,
+  },
+  sheetSubTitle: {
+    fontSize: 14,
+    color: COLORS.GRAY,
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.DARK,
+    marginBottom: 8,
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    padding: 12,
+    height: 100,
+    fontSize: 15,
+    color: COLORS.DARK,
+    marginBottom: 20,
+    backgroundColor: '#FAFAFA',
+  },
+  confirmCancelBtn: {
+    backgroundColor: '#DC3545',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmCancelBtnText: {
+    color: COLORS.WHITE,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  disabledBtn: {
+    opacity: 0.6,
+  },
+  backBtn: {
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  backBtnText: {
+    color: COLORS.GRAY,
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

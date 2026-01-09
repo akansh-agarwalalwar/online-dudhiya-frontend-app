@@ -47,14 +47,17 @@ import {
   selectUserLoading,
   selectUserProfile,
 } from '../redux/slices/userSlice';
+import { setRedirectScreen } from '../redux/slices/authSlice';
 import { createProductOrder } from '../redux/thunks/orderThunk';
 import paymentService from '../services/paymentService';
+import commonService from '../services/commonService';
 
 const Cart = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
   // Redux state
+  const { isAuthenticated, isGuest } = useSelector((state) => state.auth);
   const cartItems = useSelector(selectCartItems);
   const totalItems = useSelector(selectCartItemsCount);
   const totalAmount = useSelector(selectCartTotalPrice);
@@ -67,13 +70,46 @@ const Cart = () => {
 
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Online'); // 'Online' or 'COD'
+  const [deliveryChargeData, setDeliveryChargeData] = useState(null);
+  const [deliveryChargeInfo, setDeliveryChargeInfo] = useState({
+    amount: 0,
+    isFree: true,
+    message: 'Free Delivery',
+  });
 
-  // Fetch cart, addresses, and user profile on mount
+  // Fetch cart on mount, fetch user data only if logged in
   useEffect(() => {
     dispatch(fetchCart());
-    dispatch(fetchAddresses());
-    dispatch(fetchUserProfile());
-  }, [dispatch]);
+
+    if (isAuthenticated && !isGuest) {
+      dispatch(fetchAddresses());
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, isAuthenticated, isGuest]);
+
+  // Fetch delivery charge configuration
+  useEffect(() => {
+    const fetchDeliveryCharge = async () => {
+      try {
+        const result = await commonService.getDeliveryCharge();
+        setDeliveryChargeData(result.data);
+      } catch (error) {
+        console.error('Failed to fetch delivery charge:', error);
+        // Set default values if fetch fails
+        setDeliveryChargeData(null);
+      }
+    };
+
+    fetchDeliveryCharge();
+  }, []);
+
+  // Calculate delivery charge whenever cart total or delivery charge data changes
+  useEffect(() => {
+    if (deliveryChargeData) {
+      const chargeInfo = commonService.calculateDeliveryCharge(totalAmount, deliveryChargeData);
+      setDeliveryChargeInfo(chargeInfo);
+    }
+  }, [totalAmount, deliveryChargeData]);
 
   // Handle quantity change
   const handleQuantityChange = useCallback(async (itemId, newQuantity) => {
@@ -222,13 +258,6 @@ const Cart = () => {
     try {
       setIsCheckoutLoading(true);
 
-      // Validate address
-      if (!defaultAddress) {
-        Alert.alert('Address Required', 'Please add a delivery address to continue.');
-        setIsCheckoutLoading(false);
-        return;
-      }
-
       // Validate cart items
       if (!cartItems || cartItems.length === 0) {
         Alert.alert('Empty Cart', 'Your cart is empty. Add items to continue.');
@@ -236,9 +265,31 @@ const Cart = () => {
         return;
       }
 
-      // Validate user profile completion
-      if (!userProfile) {
-        Alert.alert('Profile Required', 'Please login to continue.');
+      // Validate user profile completion / Guest check
+      if (isGuest || !isAuthenticated || !userProfile) {
+        Alert.alert(
+          'Login Required',
+          'Please login to place an order.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Login',
+              onPress: () => {
+                dispatch(setRedirectScreen('Cart'));
+                navigation.navigate('Login');
+              },
+            },
+          ]
+        );
+        setIsCheckoutLoading(false);
+        return;
+      }
+      // Validate address
+      if (!defaultAddress) {
+        Alert.alert('Address Required', 'Please add a delivery address to continue.');
         setIsCheckoutLoading(false);
         return;
       }
@@ -363,10 +414,52 @@ const Cart = () => {
 
   // Handle address actions
   const handleEditAddress = useCallback((addressId) => {
+    // Validate user profile completion / Guest check
+    if (isGuest || !isAuthenticated || !userProfile) {
+      Alert.alert(
+        'Login Required',
+        'Please login to place an order.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Login',
+            onPress: () => {
+              dispatch(setRedirectScreen('Cart'));
+              navigation.navigate('Login');
+            },
+          },
+        ]
+      );
+      return;
+    }
     navigation.navigate('ManageAddress', { editAddressId: addressId });
-  }, [navigation]);
+  }, [navigation, isGuest, isAuthenticated, userProfile, dispatch]);
 
   const handleDeleteAddress = useCallback(async (addressId) => {
+    // Validate user profile completion / Guest check
+    if (isGuest || !isAuthenticated || !userProfile) {
+      Alert.alert(
+        'Login Required',
+        'Please login to place an order.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Login',
+            onPress: () => {
+              dispatch(setRedirectScreen('Cart'));
+              navigation.navigate('Login');
+            },
+          },
+        ]
+      );
+      return;
+    }
     Alert.alert(
       'Delete Address',
       'Are you sure you want to delete this address?',
@@ -400,17 +493,44 @@ const Cart = () => {
 
   const handleChangeAddress = useCallback(() => {
     // Navigate to address selection/management screen
+    if (isGuest || !isAuthenticated || !userProfile) {
+      Alert.alert(
+        'Login Required',
+        'Please login to place an order.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Login',
+            onPress: () => {
+              dispatch(setRedirectScreen('Cart'));
+              navigation.navigate('Login');
+            },
+          },
+        ]
+      );
+      return;
+    }
     navigation.navigate('ManageAddress');
   }, [navigation]);
 
   // Transform cart items to match CartItem component expected format
   const transformedCartItems = useMemo(() => {
     return cartItems.map(item => {
-      // Build description safely
+      // Handle both API (populated size) and Guest/Local (sizeId only)
+      let sizeObj = item.size;
+      if (!sizeObj && item.sizeId && item.medicine?.sizes) {
+        sizeObj = item.medicine.sizes.find(s => s.id === item.sizeId);
+      }
+
+      // Build description
       let description = '';
-      if (item.size) {
-        const packaging = item.medicine.packagingSize || '';
-        const sizeName = item.size.sizeName || '';
+      const packaging = item.medicine.packagingSize || item.medicine.packaging_size || '';
+
+      if (sizeObj) {
+        const sizeName = sizeObj.sizeName || sizeObj.size_name || '';
         if (packaging && sizeName) {
           description = `${packaging} - ${sizeName}`;
         } else if (packaging) {
@@ -419,22 +539,25 @@ const Cart = () => {
           description = sizeName;
         }
       } else {
-        description = item.medicine.description || 'No description';
+        description = item.medicine.description || packaging || 'No description';
       }
+
+      const price = parseFloat(sizeObj?.salePrice || sizeObj?.sale_price || item.medicine.salePrice || item.medicine.sale_price || 0);
+      const originalPrice = parseFloat(sizeObj?.mrp || item.medicine.mrp || 0);
 
       return {
         id: item.id,
-        name: item.medicine.productName || 'Product',
+        name: item.medicine.productName || item.medicine.product_name || item.medicine.title || 'Product',
         description: description,
-        price: parseFloat(item.size?.salePrice || item.medicine.salePrice || 0),
-        originalPrice: parseFloat(item.size?.mrp || item.medicine.mrp || 0),
+        price: price,
+        originalPrice: originalPrice,
         discount: item.medicine.discount || 0,
         quantity: item.quantity,
-        image: item.medicine.images?.[0] || 'https://via.placeholder.com/150',
+        image: item.medicine.images?.[0]?.url || item.medicine.images?.[0] || 'https://via.placeholder.com/150',
         isFavorite: false, // TODO: Implement when backend supports it
-        sizeInfo: item.size ? {
-          id: item.size.id,
-          name: item.size.sizeName,
+        sizeInfo: sizeObj ? {
+          id: sizeObj.id,
+          name: sizeObj.sizeName || sizeObj.size_name,
         } : null,
       };
     });
@@ -573,6 +696,8 @@ const Cart = () => {
           itemCount={totalItems}
           onCheckout={handleCheckout}
           isLoading={isCheckoutLoading}
+          deliveryChargeInfo={deliveryChargeInfo}
+          deliveryChargeData={deliveryChargeData}
         />
       </ScrollView>
 

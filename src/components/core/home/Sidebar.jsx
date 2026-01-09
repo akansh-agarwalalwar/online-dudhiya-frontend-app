@@ -5,7 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
-import { ShoppingCart, User, X, Store, Headphones, LogOut, Info } from "lucide-react-native";
+import { ShoppingCart, User, X, Store, Headphones, LogOut, Info, LogIn } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCategories } from "../../../redux/thunks/categoryThunk";
@@ -81,7 +81,14 @@ const Sidebar = ({ visible, onClose, profile }) => {
     });
   };
 
-  const handleLogout = () => {
+  const handleAuthAction = () => {
+    if (isGuest) {
+      handleClose();
+      dispatch(logout());
+      navigation.navigate("AuthStack", { screen: "Login" });
+      return;
+    }
+
     Alert.alert(
       "Logout",
       "Are you sure you want to logout?",
@@ -202,11 +209,24 @@ const Sidebar = ({ visible, onClose, profile }) => {
           <Text style={styles.menuText}>About Us</Text>
         </TouchableOpacity>
 
-        {/* LOGOUT */}
+        {/* LOGOUT / LOGIN */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={[styles.menuItem, styles.logoutBtn]} onPress={handleLogout}>
-            <LogOut size={22} color="red" />
-            <Text style={[styles.menuText, { color: "red" }]}>Logout</Text>
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              styles.logoutBtn,
+              isGuest && { backgroundColor: '#E0F2F1' }
+            ]}
+            onPress={handleAuthAction}
+          >
+            {isGuest ? (
+              <LogIn size={22} color="#009688" />
+            ) : (
+              <LogOut size={22} color="red" />
+            )}
+            <Text style={[styles.menuText, { color: isGuest ? "#009688" : "red" }]}>
+              {isGuest ? "Login" : "Logout"}
+            </Text>
           </TouchableOpacity>
         </View>
 

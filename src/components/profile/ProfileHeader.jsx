@@ -16,7 +16,7 @@ const ProfileHeader = ({
   userImage = '',
   userName = 'John Doe',
   // userEmail = 'john.doe@example.com',
-  userPhone = '+91 9876543210',
+  userPhone = '+91 9460941028',
   onEditPress,
 }) => {
   return (

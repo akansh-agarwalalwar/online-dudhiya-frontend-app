@@ -27,8 +27,26 @@ import { Home as HomeIcon, ShoppingBag, ShoppingCart, User } from "lucide-react-
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigation } from "@react-navigation/native";
+import { clearRedirectScreen } from "../redux/slices/authSlice";
+import { useEffect } from "react";
+
 // Tab Navigator Component
 function TabNavigator() {
+  const dispatch = useDispatch();
+  const navigation = useNavigation();
+  const { redirectScreen } = useSelector(state => state.auth);
+
+  useEffect(() => {
+    if (redirectScreen) {
+      // Clear before navigating to avoid loop or race conditions
+      const screen = redirectScreen;
+      dispatch(clearRedirectScreen());
+      navigation.navigate(screen);
+    }
+  }, [redirectScreen, navigation, dispatch]);
+
   return (
     <Tab.Navigator
       screenOptions={{

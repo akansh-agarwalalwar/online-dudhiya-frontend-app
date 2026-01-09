@@ -85,7 +85,7 @@ class AuthService {
       console.log('✅ OTP verification successful');
 
       // Extract token and user data from response
-      const { access_token, is_profile_complete } = response.data;
+      const { access_token, is_profile_complete, user } = response.data;
 
       if (!access_token) {
         throw new Error('Authentication token not received');
@@ -93,7 +93,7 @@ class AuthService {
 
       // Store authentication data securely
       await this.storeAuthenticationData(access_token, {
-        phone_number: phoneNumber,
+        ...user,
         is_profile_complete,
       });
 
@@ -103,7 +103,7 @@ class AuthService {
         success: true,
         message: response.message || 'OTP verified successfully',
         user: {
-          phone_number: phoneNumber,
+          ...user,
           is_profile_complete,
         },
         token: access_token,

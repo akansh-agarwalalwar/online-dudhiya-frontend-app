@@ -7,6 +7,7 @@ const initialState = {
   loading: false,
   error: null,
   isGuest: false,
+  redirectScreen: null,
 };
 
 const authSlice = createSlice({
@@ -48,6 +49,12 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setRedirectScreen: (state, action) => {
+      state.redirectScreen = action.payload;
+    },
+    clearRedirectScreen: (state) => {
+      state.redirectScreen = null;
+    },
   },
 });
 
@@ -58,6 +65,8 @@ export const {
   logout,
   clearError,
   guestLogin,
+  setRedirectScreen,
+  clearRedirectScreen,
 } = authSlice.actions;
 
 export default authSlice.reducer;

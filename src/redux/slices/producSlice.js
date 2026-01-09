@@ -19,7 +19,12 @@ const productsSlice = createSlice({
 
       .addCase(fetchHomeSections.fulfilled, (state, action) => {
         state.loading = false;
-        state.products = action.payload;
+        const { offset } = action.meta.arg;
+        if (offset && offset > 0) {
+          state.products = [...state.products, ...action.payload];
+        } else {
+          state.products = action.payload;
+        }
       })
 
       .addCase(fetchHomeSections.rejected, (state, action) => {

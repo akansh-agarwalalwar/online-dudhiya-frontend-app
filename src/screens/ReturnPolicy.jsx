@@ -36,7 +36,7 @@ const ReturnPolicy = () => {
 
                     <Text style={styles.sectionTitle}>3. Process for Reporting Issues</Text>
                     <Text style={styles.paragraph}>
-                        Please contact our customer support team via the 'Help & Support' section in the app or email us at support@onlinedhudhiya.com. Include your order number and details of the issue.
+                        Please contact our customer support team via the 'Help & Support' section in the app or email us at onlinedudhiya01@gmail.com. Include your order number and details of the issue.
                     </Text>
 
                     <Text style={styles.sectionTitle}>4. Refund Method</Text>
@@ -51,7 +51,7 @@ const ReturnPolicy = () => {
 
                     <Text style={styles.sectionTitle}>6. Contact Us</Text>
                     <Text style={styles.paragraph}>
-                        If you have any questions about our Return Policy, please contact us at support@onlinedhudhiya.com.
+                        If you have any questions about our Return Policy, please contact us at onlinedudhiya01@gmail.com.
                     </Text>
 
                     <View style={styles.footer}>

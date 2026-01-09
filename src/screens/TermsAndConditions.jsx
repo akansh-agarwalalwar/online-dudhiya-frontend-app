@@ -68,7 +68,7 @@ const TermsAndConditions = () => {
 
                     <Text style={styles.sectionTitle}>10. Contact Information</Text>
                     <Text style={styles.paragraph}>
-                        If you have any questions about these Terms, please contact us at support@onlinedhudhiya.com.
+                        If you have any questions about these Terms, please contact us at onlinedudhiya01@gmail.com.
                     </Text>
 
                     <View style={styles.footer}>

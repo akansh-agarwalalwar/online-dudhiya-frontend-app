@@ -12,7 +12,14 @@ const OrderCard = ({ order, onPress }) => {
     const productImage = firstItem?.images?.[0]?.url || "https://via.placeholder.com/150";
 
     // Determine order status
-    const deliveryStatus = order?.deliveryStatus || "PENDING";
+    // Determine order status - Check orderStatus first for cancellations
+    const orderStatus = order?.orderStatus;
+    const isOrderCancelled = ['CANCELLED', 'CANCELLED_BY_CUSTOMER', 'REJECTED'].includes(orderStatus);
+
+    // If order is cancelled, override deliveryStatus
+    const effectiveStatus = isOrderCancelled ? (orderStatus === 'CANCELLED_BY_CUSTOMER' ? 'CANCELLED' : orderStatus) : (order?.deliveryStatus || "PENDING");
+
+    const deliveryStatus = effectiveStatus;
     const isActive = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(deliveryStatus);
     const isCompleted = ['DELIVERED', 'COMPLETED'].includes(deliveryStatus);
     const isCancelled = ['CANCELLED', 'REJECTED'].includes(deliveryStatus);

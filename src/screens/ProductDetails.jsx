@@ -173,6 +173,7 @@ const ProductDetailsScreen = () => {
       const payload = {
         medicineId: product.id,
         quantity: 1,
+        product: product, // Pass product object for guest cart
       };
 
       // Add sizeId if product has sizes
@@ -427,7 +428,7 @@ const ProductDetailsScreen = () => {
             disabled={addingToCart}
           >
             <Text style={styles.subscribeText}>
-              {addingToCart ? 'Adding...' : `Add To Bag @ ₹${selectedSize?.salePrice || product.price || 139}`}
+              {addingToCart ? 'Adding...' : `Add To Bag @ ₹${selectedSize?.salePrice || product.salePrice || ''}`}
             </Text>
           </TouchableOpacity>
         ) : (

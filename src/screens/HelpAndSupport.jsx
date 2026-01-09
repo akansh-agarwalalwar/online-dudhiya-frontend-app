@@ -31,15 +31,15 @@ const HelpAndSupport = () => {
     const navigation = useNavigation();
 
     const handleEmail = () => {
-        Linking.openURL('mailto:support@onlinedhudhiya.com');
+        Linking.openURL('mailto:onlinedudhiya01@gmail.com');
     };
 
     const handleCall = () => {
-        Linking.openURL('tel:+919876543210');
+        Linking.openURL('tel:+919460941028');
     };
 
     const handleChat = () => {
-        Linking.openURL('https://wa.me/919876543210');
+        Linking.openURL('https://wa.me/919460941028');
     };
 
     return (

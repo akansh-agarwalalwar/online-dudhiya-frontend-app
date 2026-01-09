@@ -17,6 +17,8 @@ const Product = ({ route }) => {
 
   // Get params locally to handle updates
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   // Categories from Redux
   const categories = useSelector(selectCategories);
@@ -27,6 +29,8 @@ const Product = ({ route }) => {
     const { categoryId, categorySlug, categoryName } = route?.params || {};
     if (categorySlug) {
       setSelectedCategory({ id: categoryId, slug: categorySlug, name: categoryName });
+      setPage(1);
+      setHasMore(true);
     } else {
       setSelectedCategory(null);
     }
@@ -44,25 +48,42 @@ const Product = ({ route }) => {
 
   // Build params for API call
   const params = {
-    page: 1,
+    page: page,
     limit: 20,
+    offset: (page - 1) * 20,
     // Add category filter if provided
     ...(selectedCategory?.slug && { categoryIds: selectedCategory.slug }),
   };
 
   useEffect(() => {
-    dispatch(fetchHomeSections(params));
-  }, [dispatch, selectedCategory]);
+    dispatch(fetchHomeSections(params)).unwrap()
+      .then((result) => {
+        if (result?.length < 20) {
+          setHasMore(false);
+        }
+      })
+      .catch(() => { });
+  }, [dispatch, selectedCategory, page]);
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore && allProducts.length >= 20) {
+      setPage((prev) => prev + 1);
+    }
+  };
 
 
   const handleCategoryPress = (category) => {
     if (!category) {
       // "All" selected
       setSelectedCategory(null);
+      setPage(1);
+      setHasMore(true);
       // Update navigation params to reflect "All" state without reloading page structure
       navigation.setParams({ categoryId: null, categorySlug: null, categoryName: null });
     } else {
       setSelectedCategory({ id: category.id, slug: category.slug, name: category.name });
+      setPage(1);
+      setHasMore(true);
       // Update navigation params just to keep URL/state in sync if needed
       navigation.setParams({ categoryId: category.id, categorySlug: category.slug, categoryName: category.name });
     }
@@ -145,7 +166,7 @@ const Product = ({ route }) => {
         />
       </View>
 
-      {loading ? (
+      {loading && page === 1 ? (
         renderSkeletons()
       ) : allProducts.length === 0 ? (
         // Empty State
@@ -175,6 +196,13 @@ const Product = ({ route }) => {
           columnWrapperStyle={{ justifyContent: "center" }}
           contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loading && page > 1 ? (
+              <ActivityIndicator size="small" color="#2F5795" style={{ marginVertical: 20 }} />
+            ) : null
+          }
         />
       )}
     </ScreenWrapper>

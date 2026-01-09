@@ -5,12 +5,12 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl
 } from "react-native";
 import CategoryCard from "./CategoryCard";
 import COLORS from "../../../constants/Color";
 import { useCategories, useCategorySelection } from "../../../hooks/useCategories";
+import CategoryListSkeleton from "./CategoryListSkeleton";
 
 // Background color palette for category cards
 const BG_COLORS = [
@@ -79,17 +79,7 @@ const CategoryList = ({ onSelect }) => {
   }, [handleCategorySelect]);
   // Loading state
   if (loading && categoriesWithColors.length === 0) {
-    return (
-      <View style={styles.wrapper}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Shop By Category</Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={COLORS.PRIMARY} />
-          <Text style={styles.loadingText}>Loading categories...</Text>
-        </View>
-      </View>
-    );
+    return <CategoryListSkeleton count={6} />;
   }
 
   // Error state

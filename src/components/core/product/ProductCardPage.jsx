@@ -111,6 +111,7 @@ const ProductCardPage = ({ product = {} }) => {
       const payload = {
         medicineId: product.id,
         quantity: 1,
+        product: product,
       };
 
       await dispatch(addToCart(payload)).unwrap();
@@ -126,6 +127,7 @@ const ProductCardPage = ({ product = {} }) => {
         medicineId: product.id,
         quantity: 1,
         sizeId: size.id,
+        product: product,
       };
 
       await dispatch(addToCart(payload)).unwrap();

@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
   BASE_URL: __DEV__
-    ? 'http://10.124.89.11:3002' // Development URL
+    ? 'http://10.16.53.214:3002' // Development URL
     : 'https://api.onlinedudhiya.com', // Production URL
 
   TIMEOUT: 30000, // 30 seconds
@@ -73,6 +73,12 @@ const API_CONFIG = {
       INITIATE: '/api/v1/razorpay/initiate',
       VERIFY: '/api/v1/razorpay/handle-response',
       REFUND: '/api/v1/razorpay/initiate-refund',
+    },
+    COMMON: {
+      GET_DELIVERY_CHARGE: '/api/v1/common/delivery-charge',
+    },
+    BANNERS: {
+      GET_ALL: '/api/v1/banner',
     },
     // Add other endpoints here
   },

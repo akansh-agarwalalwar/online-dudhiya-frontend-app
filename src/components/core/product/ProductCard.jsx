@@ -29,7 +29,6 @@ const ProductCard = ({ product }) => {
   const {
     images = [],
     title,
-    isVeg = "Yes",
     sizes = [],
     has_sizes,
     mrp: fallbackMrp,
@@ -37,6 +36,7 @@ const ProductCard = ({ product }) => {
     packaging_size,
     id
   } = product;
+  const isVeg = "Yes";
 
   // Get primary image
   const productImage = images && images.length > 0 ? images[0] : null;
@@ -91,6 +91,9 @@ const ProductCard = ({ product }) => {
       if (has_sizes && primarySize) {
         payload.sizeId = primarySize.id;
       }
+
+      // Pass product object for guest cart
+      payload.product = product;
 
       await dispatch(addToCart(payload)).unwrap();
     } catch (error) {

@@ -9,11 +9,11 @@ export const useProfile = () => {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  const { isGuest } = useSelector((state) => state.auth);
+  const { isGuest, isAuthenticated } = useSelector((state) => state.auth);
 
   // Load user profile
   const loadProfile = async (showLoading = true) => {
-    if (isGuest) {
+    if (isGuest || !isAuthenticated) {
       setLoading(false);
       return;
     }
@@ -71,12 +71,12 @@ export const useProfile = () => {
 
   // Load profile on component mount
   useEffect(() => {
-    if (!isGuest) {
+    if (isAuthenticated && !isGuest) {
       loadProfile();
     } else {
       setLoading(false);
     }
-  }, [isGuest]);
+  }, [isGuest, isAuthenticated]);
 
   return {
     profile,

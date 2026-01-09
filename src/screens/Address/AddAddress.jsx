@@ -115,7 +115,7 @@ const AddAddressScreen = ({ navigation, route }) => {
 
         <InputField
           label="Phone Number"
-          placeholder="9876543210"
+          placeholder="9460941028"
           value={form.phone_number}
           onChangeText={(v) => updateForm("phone_number", v)}
           keyboardType="phone-pad"

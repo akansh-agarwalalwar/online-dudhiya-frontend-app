@@ -5,15 +5,25 @@ import COLORS from '../../constants/Color';
 const CheckoutButton = ({
   totalAmount = 0,
   itemCount = 0,
-  onCheckout = () => {},
+  onCheckout = () => { },
   isLoading = false,
   disabled = false,
+  deliveryChargeInfo = {
+    amount: 0,
+    isFree: true,
+    message: 'Free Delivery',
+  },
+  deliveryChargeData = null,
 }) => {
   const formatPrice = (price) => {
     return `₹${price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const isDisabled = disabled || itemCount === 0 || isLoading;
+
+  // Calculate final total including delivery charge
+  const deliveryAmount = deliveryChargeInfo?.amount || 0;
+  const finalTotal = totalAmount + deliveryAmount;
 
   return (
     <View style={styles.container}>
@@ -22,15 +32,43 @@ const CheckoutButton = ({
           <Text style={styles.summaryLabel}>Items ({itemCount})</Text>
           <Text style={styles.summaryValue}>{formatPrice(totalAmount)}</Text>
         </View>
-        
+
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Delivery</Text>
-          <Text style={styles.summaryValue}>Free</Text>
+          <View style={styles.deliveryChargeContainer}>
+            {deliveryChargeInfo?.isFree && deliveryChargeInfo?.minPurchaseAmount > 0 ? (
+              <>
+                <Text style={[styles.summaryValue, styles.strikethrough]}>
+                  {formatPrice(deliveryChargeInfo.minPurchaseAmount > 0 ? (deliveryChargeData?.amount || 40) : 0)}
+                </Text>
+                <Text style={[styles.summaryValue, styles.freeDelivery]}>
+                  {deliveryChargeInfo.message}
+                </Text>
+              </>
+            ) : deliveryChargeInfo?.isFree ? (
+              <Text style={[styles.summaryValue, styles.freeDelivery]}>
+                {deliveryChargeInfo.message}
+              </Text>
+            ) : (
+              <Text style={styles.summaryValue}>
+                {formatPrice(deliveryAmount)}
+              </Text>
+            )}
+          </View>
         </View>
-        
+
+        {/* Show message about free delivery threshold if applicable */}
+        {!deliveryChargeInfo?.isFree && deliveryChargeInfo?.amountToFreeDelivery > 0 && (
+          <View style={styles.freeDeliveryHint}>
+            <Text style={styles.freeDeliveryHintText}>
+              Add {formatPrice(deliveryChargeInfo.amountToFreeDelivery)} more for free delivery
+            </Text>
+          </View>
+        )}
+
         <View style={[styles.summaryRow, styles.totalRow]}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{formatPrice(totalAmount)}</Text>
+          <Text style={styles.totalValue}>{formatPrice(finalTotal)}</Text>
         </View>
       </View>
 
@@ -135,6 +173,34 @@ const styles = StyleSheet.create({
   disabledButtonText: {
     color: COLORS.WHITE,
     opacity: 0.7,
+  },
+  freeDelivery: {
+    color: COLORS.SUCCESS || COLORS.PRIMARY,
+    fontWeight: '600',
+  },
+  freeDeliveryHint: {
+    backgroundColor: COLORS.PRIMARY_LIGHT || '#FFF8E1',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  freeDeliveryHintText: {
+    fontSize: 12,
+    color: COLORS.PRIMARY,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  deliveryChargeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  strikethrough: {
+    textDecorationLine: 'line-through',
+    color: COLORS.GRAY,
+    fontSize: 12,
+    marginRight: 4,
   },
 });
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, FlatList, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, FlatList, RefreshControl } from "react-native";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../redux/slices/authSlice";
@@ -16,12 +16,10 @@ import Sidebar from "../components/core/home/Sidebar";
 import useProfile from "../hooks/useProfile";
 import { selectCartItemsCount } from "../redux/slices/cartSlice";
 import { fetchCart } from "../redux/thunks/cartThunk";
-const images = [
-  require('../assets/images/Banner/Banner1.png'),
-  require('../assets/images/Banner/Banner2.png'),
-  require('../assets/images/Banner/Banner3.png'),
-  require('../assets/images/Banner/Banner4.png'),
-];
+import HomeSkeleton from "../components/core/home/HomeSkeleton";
+import bannerService from "../services/BannerService";
+import BannerSkeleton from "../components/core/home/BannerSkeleton";
+
 export default function Home({ navigation }) {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
@@ -31,9 +29,25 @@ export default function Home({ navigation }) {
   // Fetch user profile
   const { profile, loading: profileLoading, refreshProfile } = useProfile();
 
+  const [banners, setBanners] = useState([]);
+  const [isBannersLoading, setIsBannersLoading] = useState(true);
+
+  const fetchBanners = async () => {
+    try {
+      setIsBannersLoading(true);
+      const data = await bannerService.getBanners();
+      setBanners(data);
+    } catch (err) {
+      console.warn(err);
+    } finally {
+      setIsBannersLoading(false);
+    }
+  };
+
   useEffect(() => {
     dispatch(fetchSections());
     dispatch(fetchCart()); // Fetch cart to get the count
+    fetchBanners();
   }, [dispatch]);
 
   // Get default address from profile
@@ -49,7 +63,8 @@ export default function Home({ navigation }) {
       await Promise.all([
         dispatch(fetchSections()),
         dispatch(fetchCart()),
-        refreshProfile()
+        refreshProfile(),
+        fetchBanners()
       ]);
     } catch (error) {
       console.error("Error refreshing home data:", error);
@@ -179,20 +194,23 @@ export default function Home({ navigation }) {
       >
         {/* Content starts with some top padding to account for fixed header */}
         <View style={styles.contentContainer}>
-          <ImageCarousel
-            data={images}
-            height={200}
-            onPressItem={(img) => console.log("Clicked:", img)}
-          />
+          {isBannersLoading ? (
+            <BannerSkeleton />
+          ) : (
+            banners.length > 0 && (
+              <ImageCarousel
+                data={banners}
+                height={170}
+                onPressItem={(img) => console.log("Clicked:", img)}
+              />
+            )
+          )}
 
           <CategoryList onSelect={handleSelectCategory} />
 
           {/* Loading State */}
           {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#1ea6ff" />
-              <Text style={styles.loadingText}>Loading products...</Text>
-            </View>
+            <HomeSkeleton count={3} />
           )}
 
           {/* Error State */}
@@ -270,9 +288,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   contentContainer: {
-    paddingTop: 150, // Adjust this based on your header height
+    paddingTop: 160, // Adjust this based on your header height
     paddingBottom: 30,
-    backgroundColor: 'transparent',
+    marginTop:10,
+    backgroundColor: 'white',
   },
   title: {
     fontSize: 28,
