@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
   BASE_URL: __DEV__
-    ? 'http://10.16.53.214:3002' // Development URL
+    ? 'https://api.onlinedudhiya.com' // Development URL
     : 'https://api.onlinedudhiya.com', // Production URL
 
   TIMEOUT: 30000, // 30 seconds

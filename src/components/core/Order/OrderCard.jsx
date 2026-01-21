@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, Linking } from "react-native";
 import COLORS from "../../../constants/Color";
 import { Clock, Phone } from "lucide-react-native";
 
@@ -23,6 +23,9 @@ const OrderCard = ({ order, onPress }) => {
     const isActive = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(deliveryStatus);
     const isCompleted = ['DELIVERED', 'COMPLETED'].includes(deliveryStatus);
     const isCancelled = ['CANCELLED', 'REJECTED'].includes(deliveryStatus);
+
+
+
 
     // Function to get status background color based on status
     const getStatusBackgroundColor = (status) => {
@@ -75,6 +78,20 @@ const OrderCard = ({ order, onPress }) => {
                 return COLORS.PRIMARY; // Default primary color
         }
     };
+
+const mobilePress = () => {
+    if (order?.vendor?.contactNumber) {
+        const phone = "919460941028"; // without + sign
+        const message = "Hey, I want to know more about my order";
+
+        const url = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`;
+
+        Linking.openURL(url)
+            .catch(() => {
+                alert("WhatsApp is not installed on your device");
+            });
+    }
+};
 
     // Format status for display
     const formatStatus = (status) => {
@@ -163,7 +180,7 @@ const OrderCard = ({ order, onPress }) => {
                             <Text style={styles.trackText}>Track Order</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.callBtn}>
-                            <Phone color={COLORS.PRIMARY} size={22} />
+                            <Phone onClick={mobilePress} color={COLORS.PRIMARY} size={22} />
                         </TouchableOpacity>
                     </>
                 ) : isCompleted ? (
