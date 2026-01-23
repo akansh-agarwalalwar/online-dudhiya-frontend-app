@@ -18,7 +18,7 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
 
-  override fun getMainComponentName(): String = "OnlineDhudhiya"
+  override fun getMainComponentName(): String = "Online Dudhiya"
 
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
