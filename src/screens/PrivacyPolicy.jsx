@@ -140,7 +140,7 @@ const PrivacyPolicy = () => {
                     </Text>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>© 2024 Online Dhudhiya. All rights reserved.</Text>
+                        <Text style={styles.footerText}>© 2024 Online Dudhiya. All rights reserved.</Text>
                     </View>
                 </View>
             </ScrollView>

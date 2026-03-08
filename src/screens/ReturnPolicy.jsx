@@ -18,7 +18,7 @@ const ReturnPolicy = () => {
             <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
                 <View style={styles.contentContainer}>
                     <Text style={styles.paragraph}>
-                        At Online Dhudhiya, we are committed to providing you with the freshest and highest quality dairy products. If you are not satisfied with your purchase, we are here to help.
+                        At Online Dudhiya, we are committed to providing you with the freshest and highest quality dairy products. If you are not satisfied with your purchase, we are here to help.
                     </Text>
 
                     <Text style={styles.sectionTitle}>1. Returns and Refunds</Text>
@@ -55,7 +55,7 @@ const ReturnPolicy = () => {
                     </Text>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>© 2024 Online Dhudhiya. All rights reserved.</Text>
+                        <Text style={styles.footerText}>© 2024 Online Dudhiya. All rights reserved.</Text>
                     </View>
                 </View>
             </ScrollView>

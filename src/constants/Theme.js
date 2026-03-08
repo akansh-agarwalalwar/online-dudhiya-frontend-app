@@ -1,4 +1,4 @@
-import COLORS from '../../constants/Color';
+import COLORS from './Color';
 
 // Theme configuration
 export const THEME = {

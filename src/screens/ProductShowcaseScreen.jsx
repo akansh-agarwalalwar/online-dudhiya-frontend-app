@@ -65,7 +65,7 @@ const ProductShowcaseScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>Online Dhudhiya</Text>
+        <Text style={styles.headerText}>Online Dudhiya</Text>
         <Text style={styles.subtitle}>Fresh Products Delivered Daily</Text>
         <Text style={styles.countText}>
           {allProducts.length} Products • {categories.length} Categories

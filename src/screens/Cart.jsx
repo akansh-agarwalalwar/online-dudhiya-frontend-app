@@ -182,7 +182,7 @@ const Cart = () => {
         key: keyId,
         amount: razorpayOrder.amount,
         order_id: razorpayOrder.id,
-        name: 'Online Dhudhiya',
+        name: 'Online Dudhiya',
         prefill: {
           email: userProfile?.email || '',
           contact: userProfile?.phone_number || userProfile?.phone || '',

@@ -28,6 +28,11 @@ const ProductCardPage = ({ product = {} }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
+  // Early return if product is not valid
+  if (!product || typeof product !== 'object' || !product.id) {
+    return null;
+  }
+
   const [selectedSize, setSelectedSize] = useState(
     Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes[0] : null
   );
@@ -44,19 +49,19 @@ const ProductCardPage = ({ product = {} }) => {
   );
 
   // Get cart items to find the specific cart item
-  const cartItems = useSelector((state) => state.cart.items);
+  const cartItems = useSelector((state) => state.cart?.items || []);
   const cartItem = cartItems.find(item =>
-    item.medicine.id === product.id &&
+    item?.medicine?.id === product.id &&
     (selectedSize ? item.sizeId === selectedSize.id : !item.sizeId)
   );
 
   const discountPercent = calculateDiscount(
-    product.mrp,
-    product.sale_price
+    product.mrp || 0,
+    product.sale_price || 0
   );
 
-  const displayMrp = selectedSize ? selectedSize.mrp : product.mrp;
-  const displaySalePrice = selectedSize ? selectedSize.salePrice : product.sale_price;
+  const displayMrp = selectedSize ? (selectedSize.mrp || 0) : (product.mrp || 0);
+  const displaySalePrice = selectedSize ? (selectedSize.salePrice || 0) : (product.sale_price || 0);
 
   const handleNavigateToDetails = () => {
     navigation.navigate('ProductDetails', {
@@ -116,12 +121,17 @@ const ProductCardPage = ({ product = {} }) => {
 
       await dispatch(addToCart(payload)).unwrap();
     } catch (error) {
-      Alert.alert('Error', error || 'Failed to add item to cart');
+      Alert.alert('Error', (error && error.message) || error || 'Failed to add item to cart');
     }
   };
 
   // Handle add to cart with selected size
   const handleAddToCartWithSize = async (size) => {
+    if (!size || !size.id) {
+      Alert.alert('Error', 'Invalid size selected');
+      return;
+    }
+
     try {
       const payload = {
         medicineId: product.id,
@@ -134,7 +144,7 @@ const ProductCardPage = ({ product = {} }) => {
       closeSizeModal();
       setSelectedSize(size); // Update selected size for display
     } catch (error) {
-      Alert.alert('Error', error || 'Failed to add item to cart');
+      Alert.alert('Error', (error && error.message) || error || 'Failed to add item to cart');
     }
   };
 
@@ -177,7 +187,15 @@ const ProductCardPage = ({ product = {} }) => {
           {/* Product Row */}
           <View style={styles.row}>
             {/* IMAGE */}
-            <Image source={{ uri: product.images[0] }} style={styles.image} />
+            <Image 
+              source={{ 
+                uri: (product.images && Array.isArray(product.images) && product.images.length > 0) 
+                  ? product.images[0] 
+                  : null 
+              }} 
+              style={styles.image}
+              defaultSource={require('../../../assets/images/product/milk.png')}
+            />
 
           </View>
           <View style={{ position: 'absolute', top: 10, right: '10' }}>
@@ -186,7 +204,7 @@ const ProductCardPage = ({ product = {} }) => {
               size={24}
               color="#E91E63"
               onToggle={(value) => {
-                console.log("🔷 ProductCardPage - Liked status:", value, "for product:", product.id, product.product_name);
+                console.log("🔷 ProductCardPage - Liked status:", value, "for product:", product.id, product.product_name || 'Unknown Product');
               }}
             />
           </View>
@@ -196,7 +214,7 @@ const ProductCardPage = ({ product = {} }) => {
 
             {/* TITLE */}
             <Text style={[styles.title, quantity > 0 && { width: '100%' }]} numberOfLines={2} ellipsizeMode="tail">
-              {product.product_name}
+              {product.product_name || 'Unknown Product'}
             </Text>
             <AddToBagButton
               label="Add to Cart"
@@ -207,7 +225,7 @@ const ProductCardPage = ({ product = {} }) => {
             />
           </View>
           {
-            product.has_sizes && (
+            product.has_sizes && product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && (
               <>
                 <Text style={{ fontSize: 12, color: '#555', paddingHorizontal: 12, marginBottom: 8 }}>Available Sizes:</Text>
                 <SizeSelector
@@ -257,30 +275,30 @@ const ProductCardPage = ({ product = {} }) => {
             <View style={styles.modalHeader}>
               <View style={styles.modalHandle} />
               <Text style={styles.modalTitle}>Select Size</Text>
-              <Text style={styles.modalSubtitle}>{product.product_name}</Text>
+              <Text style={styles.modalSubtitle}>{product.product_name || 'Unknown Product'}</Text>
             </View>
 
             <ScrollView style={styles.sizesContainer}>
-              {product.sizes?.map((size) => (
+              {(product.sizes && Array.isArray(product.sizes) ? product.sizes : []).map((size) => (
                 <TouchableOpacity
-                  key={size.id}
+                  key={size?.id || Math.random()}
                   style={[
                     styles.sizeOption,
-                    !size.inStock && styles.sizeOptionDisabled
+                    !size?.inStock && styles.sizeOptionDisabled
                   ]}
-                  onPress={() => size.inStock && handleAddToCartWithSize(size)}
-                  disabled={!size.inStock}
+                  onPress={() => size?.inStock && handleAddToCartWithSize(size)}
+                  disabled={!size?.inStock}
                 >
                   <View style={styles.sizeInfo}>
-                    <Text style={styles.sizeName}>{size.sizeName}</Text>
-                    {!size.inStock && (
+                    <Text style={styles.sizeName}>{size?.sizeName || 'Unknown Size'}</Text>
+                    {!size?.inStock && (
                       <Text style={styles.outOfStockText}>Out of Stock</Text>
                     )}
                   </View>
                   <View style={styles.sizePriceContainer}>
-                    <Text style={styles.sizePrice}>₹{size.salePrice}</Text>
-                    {size.mrp !== size.salePrice && (
-                      <Text style={styles.sizeMrp}>₹{size.mrp}</Text>
+                    <Text style={styles.sizePrice}>₹{size?.salePrice || 0}</Text>
+                    {size?.mrp !== size?.salePrice && (
+                      <Text style={styles.sizeMrp}>₹{size?.mrp || 0}</Text>
                     )}
                   </View>
                 </TouchableOpacity>

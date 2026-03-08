@@ -18,6 +18,9 @@ import {
 } from "../../utils/validationUtils";
 
 const EditFieldModal = ({ visible, onClose, field, value, onSave, loading }) => {
+    const [inputValue, setInputValue] = useState(value || "");
+    const [error, setError] = useState(null);
+    const [isValidating, setIsValidating] = useState(false);
 
     const [inputValue, setInputValue] = useState(value || "");
     const [error, setError] = useState(null);
@@ -56,15 +59,15 @@ const EditFieldModal = ({ visible, onClose, field, value, onSave, loading }) => 
 
     const handleInputChange = (text) => {
         setInputValue(text);
-        // Clear error when user starts typing
-        if (error && text.trim()) {
-            setError(null);
-        }
-        // Show validation error immediately if field becomes empty
-        if (!text.trim()) {
+        // Debounced validation - only show errors after user stops typing
+        if (text.trim()) {
             setTimeout(() => {
-                validateInput(text);
-            }, 300);
+                if (inputValue === text) { // Only validate if user hasn't continued typing
+                    validateInput(text);
+                }
+            }, 500);
+        } else {
+            setError(null);
         }
     };
 
@@ -98,7 +101,7 @@ const EditFieldModal = ({ visible, onClose, field, value, onSave, loading }) => 
 
     const getPlaceholder = () => {
         const placeholders = {
-            name: "Enter your full name",
+            name: "Enter your name",
             username: "Enter your username",
             phone_number: "Enter your phone number",
         };
@@ -108,20 +111,6 @@ const EditFieldModal = ({ visible, onClose, field, value, onSave, loading }) => 
     const getKeyboardType = () => {
         if (field === "phone_number") return "phone-pad";
         return "default";
-    };
-
-    const getMaxLength = () => {
-        const maxLengths = {
-            name: 50,
-            username: 20,
-            phone_number: 10,
-        };
-        return maxLengths[field] || 100;
-    };
-
-    const isFormValid = () => {
-        const trimmedValue = inputValue.trim();
-        return trimmedValue.length > 0 && !error;
     };
 
     return (
@@ -141,46 +130,18 @@ const EditFieldModal = ({ visible, onClose, field, value, onSave, loading }) => 
                         </TouchableOpacity>
                     </View>
 
-                    {/* Input Container */}
+                    {/* Input */}
                     <View style={styles.inputContainer}>
                         <Text style={styles.label}>{getFieldLabel()}</Text>
-                        <View style={[
-                            styles.inputWrapper,
-                            error ? styles.inputWrapperError : null
-                        ]}>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    error ? styles.inputError : null
-                                ]}
-                                value={inputValue}
-                                onChangeText={handleInputChange}
-                                onBlur={() => validateInput(inputValue)}
-                                placeholder={getPlaceholder()}
-                                placeholderTextColor={COLORS.GRAY}
-                                keyboardType={getKeyboardType()}
-                                maxLength={getMaxLength()}
-                                autoFocus
-                                autoCorrect={field === 'name'}
-                                autoCapitalize={field === 'name' ? 'words' : 'none'}
-                                editable={!loading && !isValidating}
-                            />
-                        </View>
-                        
-                        {/* Error Message */}
-                        {error && (
-                            <View style={styles.errorContainer}>
-                                <AlertCircle size={14} color={COLORS.ERROR} />
-                                <Text style={styles.errorText}>{error}</Text>
-                            </View>
-                        )}
-
-                        {/* Character Count for limited fields */}
-                        {(field === 'name' || field === 'username') && (
-                            <Text style={styles.characterCount}>
-                                {inputValue.length}/{getMaxLength()}
-                            </Text>
-                        )}
+                        <TextInput
+                            style={styles.input}
+                            value={inputValue}
+                            onChangeText={setInputValue}
+                            placeholder={getPlaceholder()}
+                            placeholderTextColor={COLORS.GRAY}
+                            keyboardType={getKeyboardType()}
+                            autoFocus
+                        />
                     </View>
 
                     {/* Buttons */}
@@ -188,26 +149,19 @@ const EditFieldModal = ({ visible, onClose, field, value, onSave, loading }) => 
                         <TouchableOpacity
                             style={[styles.button, styles.cancelButton]}
                             onPress={onClose}
-                            disabled={loading || isValidating}
+                            disabled={loading}
                         >
                             <Text style={styles.cancelText}>Cancel</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[
-                                styles.button, 
-                                styles.saveButton,
-                                !isFormValid() ? styles.saveButtonDisabled : null
-                            ]}
+                            style={[styles.button, styles.saveButton]}
                             onPress={handleSave}
-                            disabled={loading || isValidating || !isFormValid()}
+                            disabled={loading || !inputValue.trim()}
                         >
-                            {(loading || isValidating) ? (
+                            {loading ? (
                                 <ActivityIndicator color={COLORS.WHITE} size="small" />
                             ) : (
-                                <Text style={[
-                                    styles.saveText,
-                                    !isFormValid() ? styles.saveTextDisabled : null
-                                ]}>Save</Text>
+                                <Text style={styles.saveText}>Save</Text>
                             )}
                         </TouchableOpacity>
                     </View>
@@ -257,39 +211,14 @@ const styles = StyleSheet.create({
         color: COLORS.DARK,
         marginBottom: 8,
     },
-    inputWrapper: {
+    input: {
         borderWidth: 1,
         borderColor: COLORS.LIGHT_GRAY,
         borderRadius: 12,
-        backgroundColor: COLORS.WHITE,
-    },
-    inputWrapperError: {
-        borderColor: COLORS.ERROR,
-    },
-    input: {
         padding: 14,
         fontSize: 16,
         color: COLORS.DARK,
-    },
-    inputError: {
-        color: COLORS.DARK,
-    },
-    errorContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    errorText: {
-        fontSize: 12,
-        color: COLORS.ERROR,
-        marginLeft: 4,
-        flex: 1,
-    },
-    characterCount: {
-        fontSize: 12,
-        color: COLORS.GRAY,
-        textAlign: 'right',
-        marginTop: 4,
+        backgroundColor: COLORS.WHITE,
     },
     buttonContainer: {
         flexDirection: "row",
@@ -308,9 +237,6 @@ const styles = StyleSheet.create({
     saveButton: {
         backgroundColor: COLORS.PRIMARY,
     },
-    saveButtonDisabled: {
-        backgroundColor: COLORS.GRAY,
-    },
     cancelText: {
         fontSize: 16,
         fontWeight: "600",
@@ -320,8 +246,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: COLORS.WHITE,
-    },
-    saveTextDisabled: {
-        color: COLORS.LIGHT_GRAY,
     },
 });

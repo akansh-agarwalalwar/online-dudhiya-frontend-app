@@ -231,7 +231,7 @@ const Profile = ({ navigation }) => {
           <ProfileMenuItem
             IconComponent={Info}
             title="About"
-            subtitle="Learn more about Online Dhudhiya"
+            subtitle="Learn more about Online Dudhiya"
             onPress={handleAbout}
             isLast={true}
           />

@@ -164,7 +164,7 @@ export default function Home({ navigation }) {
         ]}
       >
         <Header
-          title="Online Dhudhiya"
+          title="Online Dudhiya"
           location={defaultAddress ? `${defaultAddress.address_line_1}, ${defaultAddress.city_district}` : "Add delivery address"}
           onLocationPress={() => navigation.navigate("ManageAddress")}
           onMenuPress={openSidebar}

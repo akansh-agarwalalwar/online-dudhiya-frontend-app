@@ -18,7 +18,7 @@ const TermsAndConditions = () => {
             <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
                 <View style={styles.contentContainer}>
                     <Text style={styles.paragraph}>
-                        Welcome to Online Dhudhiya. By accessing or using our mobile application and services, you agree to comply with and be bound by the following Terms and Conditions. Please read them carefully.
+                        Welcome to Online Dudhiya. By accessing or using our mobile application and services, you agree to comply with and be bound by the following Terms and Conditions. Please read them carefully.
                     </Text>
 
                     <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
@@ -58,7 +58,7 @@ const TermsAndConditions = () => {
 
                     <Text style={styles.sectionTitle}>8. Limitation of Liability</Text>
                     <Text style={styles.paragraph}>
-                        To the maximum extent permitted by law, Online Dhudhiya shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues.
+                        To the maximum extent permitted by law, Online Dudhiya shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues.
                     </Text>
 
                     <Text style={styles.sectionTitle}>9. Changes to Terms</Text>
@@ -72,7 +72,7 @@ const TermsAndConditions = () => {
                     </Text>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>© 2024 Online Dhudhiya. All rights reserved.</Text>
+                        <Text style={styles.footerText}>© 2024 Online Dudhiya. All rights reserved.</Text>
                     </View>
                 </View>
             </ScrollView>

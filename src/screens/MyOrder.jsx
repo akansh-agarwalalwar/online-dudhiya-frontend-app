@@ -375,7 +375,8 @@ const MyOrdersScreen = () => {
                   <View>
                     <Text style={styles.sheetOrderNo}>Order #{selectedOrder.orderNo}</Text>
                     <Text style={styles.dateText}>
-                      {getDeliveryStatusText(selectedOrder)}
+                      {/*{getDeliveryStatusText(selectedOrder)}*/}
+                      1 - 2 Hours
                     </Text>
                   </View>
                   <View style={[

@@ -3,15 +3,48 @@ import { View, Text, Image, ImageBackground, StyleSheet, Animated, StatusBar } f
 import ScreenWrapper from '../components/common/ScreenWrapper';
 import LinearGradient from 'react-native-linear-gradient';
 
-const Splash = () => {
+import updateService from '../services/UpdateService';
+
+const Splash = ({ onComplete }) => {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.85)).current;
+
   useEffect(() => {
+    // Start animations
     Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
     ]).start();
-  }, [opacity, scale]);
+
+    // Check for version update
+    const initApp = async () => {
+      try {
+        const startTime = Date.now();
+        const updateRequired = await updateService.checkUpdateAvailability();
+
+        // Ensure splash shows for at least 2 seconds for branding
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, 2000 - elapsedTime);
+
+        setTimeout(() => {
+          if (updateRequired) {
+            onComplete && onComplete(true);
+          } else {
+            onComplete && onComplete(false);
+          }
+        }, remainingTime);
+
+      } catch (error) {
+        console.error('Initialization failed:', error);
+        // Fail gracefully to app after 2 seconds
+        setTimeout(() => {
+          onComplete && onComplete(false);
+        }, 2000);
+      }
+    };
+
+    initApp();
+  }, [opacity, scale, onComplete]);
 
   return (
     <ScreenWrapper topSafeArea={false} bottomSafeArea={true}>

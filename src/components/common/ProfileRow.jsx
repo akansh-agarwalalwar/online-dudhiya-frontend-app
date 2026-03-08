@@ -1,18 +1,55 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import COLORS from "../../constants/Color";
-import { ArrowRight } from "lucide-react-native";
+import { ArrowRight, CheckCircle, AlertCircle, Info } from "lucide-react-native";
 
-const ProfileRow = ({ label, value, onPress, disabled = false }) => {
+const ProfileRow = ({ 
+  label, 
+  value, 
+  onPress, 
+  disabled = false, 
+  showValidation = false,
+  isValid = true,
+  showInfo = null
+}) => {
+  const getValidationIcon = () => {
+    if (!showValidation) return null;
+    
+    if (value === "Not set") {
+      return <AlertCircle size={16} color={COLORS.WARNING} />;
+    }
+    
+    return isValid ? 
+      <CheckCircle size={16} color={COLORS.SUCCESS} /> : 
+      <AlertCircle size={16} color={COLORS.ERROR} />;
+  };
+
+  const getInfoIcon = () => {
+    if (!showInfo) return null;
+    return <Info size={16} color={COLORS.GRAY} />;
+  };
+
   return (
     <TouchableOpacity
       style={[styles.row, disabled && styles.disabledRow]}
       onPress={onPress}
       disabled={disabled}
     >
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.leftSide}>
+        <Text style={styles.label}>{label}</Text>
+        {showInfo && (
+          <Text style={styles.infoText}>{showInfo}</Text>
+        )}
+      </View>
       <View style={styles.rightSide}>
-        <Text style={styles.value}>{value}</Text>
+        <Text style={[
+          styles.value,
+          value === "Not set" && styles.notSetValue
+        ]}>
+          {value}
+        </Text>
+        {getValidationIcon()}
+        {getInfoIcon()}
         {!disabled && <ArrowRight size={20} color={COLORS.GRAY} />}
       </View>
     </TouchableOpacity>
@@ -37,10 +74,19 @@ const styles = StyleSheet.create({
   disabledRow: {
     opacity: 0.6,
   },
+  leftSide: {
+    flex: 1,
+  },
   label: {
     fontSize: 15,
     color: COLORS.DARK,
     fontWeight: "500",
+  },
+  infoText: {
+    fontSize: 12,
+    color: COLORS.GRAY,
+    marginTop: 2,
+    fontStyle: "italic",
   },
   rightSide: {
     flexDirection: "row",
@@ -50,5 +96,9 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 15,
     color: COLORS.GRAY,
+  },
+  notSetValue: {
+    color: COLORS.WARNING,
+    fontStyle: "italic",
   },
 });

@@ -21,16 +21,20 @@ const About = () => {
             <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
                 <View style={styles.logoContainer}>
                     <View style={styles.logoPlaceholder}>
-                        <Text style={styles.logoText}>OD</Text>
+                        <Image
+                            source={require('../assets/images/logos/logowbg.png')}
+                            style={{ width: 60, height: 60, borderRadius: 15 }}
+                            resizeMode="contain"
+                        />
                     </View>
-                    <Text style={styles.appName}>Online Dhudhiya</Text>
+                    <Text style={styles.appName}>Online Dudhiya</Text>
                     <Text style={styles.version}>Version 1.0.0</Text>
                 </View>
 
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Who We Are</Text>
                     <Text style={styles.description}>
-                        Online Dhudhiya is your trusted partner for fresh dairy products delivered straight to your doorstep.
+                        Online Dudhiya is your trusted partner for fresh dairy products delivered straight to your doorstep.
                         We are committed to providing high-quality, unadulterated milk and dairy products to ensure the health and well-being of your family.
                     </Text>
                 </View>
@@ -70,7 +74,7 @@ const About = () => {
                 </View>
 
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>© 2024 Online Dhudhiya. All rights reserved.</Text>
+                    <Text style={styles.footerText}>© 2024 Online Dudhiya. All rights reserved.</Text>
                     <Text style={styles.footerText}>Made with ❤️ in India</Text>
                 </View>
             </ScrollView>

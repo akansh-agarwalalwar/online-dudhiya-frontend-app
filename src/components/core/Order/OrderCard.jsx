@@ -79,19 +79,26 @@ const OrderCard = ({ order, onPress }) => {
         }
     };
 
-const mobilePress = () => {
-    if (order?.vendor?.contactNumber) {
-        const phone = "919460941028"; // without + sign
+    const mobilePress = () => {
+        const phone = order?.vendor?.contactNumber || "9460941028";
         const message = "Hey, I want to know more about my order";
 
-        const url = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`;
+        // Using wa.me link which works on both web and mobile
+        const whatsappUrl = `https://wa.me/${phone.startsWith('91') ? phone : '91' + phone}?text=${encodeURIComponent(message)}`;
+        const phoneUrl = `tel:${phone}`;
 
-        Linking.openURL(url)
-            .catch(() => {
-                alert("WhatsApp is not installed on your device");
-            });
-    }
-};
+        Linking.canOpenURL(whatsappUrl).then(supported => {
+            if (supported) {
+                Linking.openURL(whatsappUrl);
+            } else {
+                console.log("WhatsApp not supported, trying phone call");
+                Linking.openURL(phoneUrl).catch(err => console.error("Error opening dialer:", err));
+            }
+        }).catch(err => {
+            console.error("Error checking URL support:", err);
+            Linking.openURL(phoneUrl).catch(dialErr => console.error("Error opening dialer fallback:", dialErr));
+        });
+    };
 
     // Format status for display
     const formatStatus = (status) => {
@@ -179,8 +186,8 @@ const mobilePress = () => {
                         <TouchableOpacity style={styles.trackBtn} onPress={onPress}>
                             <Text style={styles.trackText}>Track Order</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.callBtn}>
-                            <Phone onClick={mobilePress} color={COLORS.PRIMARY} size={22} />
+                        <TouchableOpacity style={styles.callBtn} onPress={mobilePress}>
+                            <Phone color={COLORS.PRIMARY} size={22} />
                         </TouchableOpacity>
                     </>
                 ) : isCompleted ? (
